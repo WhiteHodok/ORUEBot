@@ -6,6 +6,10 @@ from config import bot
 from src.keyboards.user_keyboard import *  # TODO
 from src.phrases import * #TODO
 from src.states.user_states import User
+from src.middlewares.user_verification_middleware import VerificationMiddleware
 from config import supabase
 
 user_router = Router()
+
+user_router.message.middleware(VerificationMiddleware())
+
