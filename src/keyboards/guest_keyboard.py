@@ -7,6 +7,12 @@ guest_user_button = {"scan": "📲Отсканировать QR-код"}
 
 
 def guest_user_keyboard():
+    """
+    Creates a guest user keyboard with a single button for scanning a QR code.
+
+    Returns:
+        ReplyKeyboardMarkup: The guest user keyboard with a single button for scanning a QR code.
+    """
     guest_keyboard = ReplyKeyboardBuilder()
     qr_button = KeyboardButton(text=guest_user_button['scan'],
                                web_app=WebAppInfo(url="https://vue-qr-tg-scanner.vercel.app"))
