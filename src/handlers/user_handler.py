@@ -4,7 +4,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 from config import bot
 from src.keyboards.user_keyboard import (
-    genre_of_work_keyboard, skip_keyboard, user_keyboard_button, user_keyboard, guild_keyboard_button, guild_keyboard,
+    genre_of_work_keyboard,
+    skip_keyboard,
+    user_keyboard_button,
+    user_keyboard,
+    guild_keyboard_button,
+    guild_keyboard,
     genres_of_work
 )
 from src.phrases import (
@@ -101,59 +106,168 @@ async def handle_fio_start(message: Message, state: FSMContext):
 
 @user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild1'])
 async def handle_guild_start_guild1(message: Message, state: FSMContext):
+    """
+    Handle the start of the guild selection in the survey registration process.
+
+    Args:
+        message (Message): The message object containing the user's input.
+        state (FSMContext): The finite state machine context.
+
+    Returns:
+        None
+    """
     try:
+        # Get the guild selection from the message
         guild = message.text
+
+        # Update the state with the guild selection
         await state.update_data(guild=guild)
+
+        # Set the state to the end of the guild selection
         await state.set_state(User.registration_handle_guild_end)
+
+        # Send a message to the user with the company name and remove the reply keyboard
         await message.reply(COMPANY_NAME, reply_markup=ReplyKeyboardRemove())
+
+        # Send a message to the user with the skip button and the skip keyboard
         await message.reply(SKIP_BUTTON, reply_markup=skip_keyboard())
     except Exception as e:
+        # Print the error if any exception occurs
         print("Error in handle_guild_start:", e)
 
 
 @user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild2'])
 async def handle_guild_start_guild2(message: Message, state: FSMContext):
+    """
+    Handle the start of the guild selection process.
+
+    Args:
+        message (Message): The message object.
+        state (FSMContext): The finite state machine context.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs.
+    """
     try:
+        # Get the guild selection from the message
         guild = message.text
+
+        # Update the state with the guild selection
         await state.update_data(guild=guild)
+
+        # Set the state to the end of the guild selection
         await state.set_state(User.registration_handle_guild_end)
+
+        # Send a message to the user with the company name and remove the reply keyboard
         await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
     except Exception as e:
+        # Print the error if any exception occurs
         print("Error in handle_guild_start:", e)
 
 
 @user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild3'])
 async def handle_guild_start_guild3(message: Message, state: FSMContext):
+    """
+    Handle the start of the guild selection process.
+
+    Args:
+        message (Message): The message object.
+        state (FSMContext): The finite state machine context.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs.
+    """
     try:
+        # Get the guild selection from the message
         guild = message.text
+
+        # Update the state with the guild selection
         await state.update_data(guild=guild)
+
+        # Set the state to the end of the guild selection
         await state.set_state(User.registration_handle_guild_end)
+
+        # Send a message to the user with the company name and remove the reply keyboard
         await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
     except Exception as e:
+        # Print the error if any exception occurs
         print("Error in handle_guild_start:", e)
+
 
 
 @user_router.callback_query(User.registration_handle_guild_end, F.data == 'skip')
 async def handle_guild_end_skip(call: CallbackQuery, state: FSMContext):
+    """
+    Handle the skip button in the guild selection process.
+
+    Args:
+        call (CallbackQuery): The callback query.
+        state (FSMContext): The state of the conversation.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs.
+    """
     try:
+        # Get the chat ID
         chat_id = call.message.chat.id
+
+        # Set the company name to 'Не указано'
         company_name = 'Не указано'
+
+        # Update the state with the company name
         await state.update_data(company_name=company_name)
+
+        # Set the state to the genre of work
         await state.set_state(User.registration_handle_genre_of_work)
+
+        # Send a message to the user with the genre of work and the genre of work keyboard
         await bot.send_message(chat_id, GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
     except Exception as e:
+        # Print the error if any exception occurs
         print("Error in handle_guild_end:", e)
+
 
 
 @user_router.message(User.registration_handle_guild_end)
 async def handle_guild_end(message: Message, state: FSMContext):
+    """
+    Handle the end of the guild selection process.
+
+    Args:
+        message (Message): The message received.
+        state (FSMContext): The state of the conversation.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs.
+    """
     try:
+        # Get the company name from the message
         company_name = message.text
+
+        # Update the state with the company name
         await state.update_data(company_name=company_name)
+
+        # Set the state to the genre of work
         await state.set_state(User.registration_handle_genre_of_work)
+
+        # Send a message to the user with the genre of work and the genre of work keyboard
         await message.reply(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
     except Exception as e:
+        # Print the error if any exception occurs
         print("Error in handle_guild_end:", e)
+
 
 
 @user_router.callback_query(User.registration_handle_genre_of_work)
