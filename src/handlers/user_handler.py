@@ -4,7 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 from config import bot
 from src.keyboards.user_keyboard import (
-    genre_of_work_keyboard, skip_keyboard, user_keyboard_button, user_keyboard, guild_keyboard_button, guild_keyboard, genres_of_work
+    genre_of_work_keyboard, skip_keyboard, user_keyboard_button, user_keyboard, guild_keyboard_button, guild_keyboard,
+    genres_of_work
 )
 from src.phrases import (
     COMPANY_NAME,
@@ -14,7 +15,8 @@ from src.phrases import (
     SURVEY_START_REGISTRATION,
     SURVEY_FIO_EXAMPLE,
     SURVEY_FIO_VALIDATION,
-    SURVEY_GUILD_EXAMPLE
+    SURVEY_GUILD_EXAMPLE,
+    SKIP_BUTTON
 )
 from src.states.user_states import User
 from src.middlewares.user_verification_middleware import VerificationMiddleware
@@ -103,9 +105,11 @@ async def handle_guild_start_guild1(message: Message, state: FSMContext):
         guild = message.text
         await state.update_data(guild=guild)
         await state.set_state(User.registration_handle_guild_end)
-        await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
+        await message.reply(COMPANY_NAME, reply_markup=ReplyKeyboardRemove())
+        await message.reply(SKIP_BUTTON, reply_markup=skip_keyboard())
     except Exception as e:
         print("Error in handle_guild_start:", e)
+
 
 @user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild2'])
 async def handle_guild_start_guild2(message: Message, state: FSMContext):
@@ -117,6 +121,7 @@ async def handle_guild_start_guild2(message: Message, state: FSMContext):
     except Exception as e:
         print("Error in handle_guild_start:", e)
 
+
 @user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild3'])
 async def handle_guild_start_guild3(message: Message, state: FSMContext):
     try:
@@ -127,15 +132,18 @@ async def handle_guild_start_guild3(message: Message, state: FSMContext):
     except Exception as e:
         print("Error in handle_guild_start:", e)
 
-@user_router.message(User.registration_handle_guild_end, F.text == 'skip')
-async def handle_guild_end_skip(message: Message, state: FSMContext):
+
+@user_router.callback_query(User.registration_handle_guild_end, F.data == 'skip')
+async def handle_guild_end_skip(call: CallbackQuery, state: FSMContext):
     try:
+        chat_id = call.message.chat.id
         company_name = 'Не указано'
         await state.update_data(company_name=company_name)
         await state.set_state(User.registration_handle_genre_of_work)
-        await message.reply(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
+        await bot.send_message(chat_id, GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
     except Exception as e:
         print("Error in handle_guild_end:", e)
+
 
 @user_router.message(User.registration_handle_guild_end)
 async def handle_guild_end(message: Message, state: FSMContext):
@@ -146,6 +154,7 @@ async def handle_guild_end(message: Message, state: FSMContext):
         await message.reply(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
     except Exception as e:
         print("Error in handle_guild_end:", e)
+
 
 @user_router.callback_query(User.registration_handle_genre_of_work)
 async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMContext):
@@ -162,4 +171,3 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
             await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
     except Exception as e:
         print("Error in handle_genre_of_work_start:", e)
-
