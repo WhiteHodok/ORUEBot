@@ -162,7 +162,10 @@ async def handle_guild_start_guild2(message: Message, state: FSMContext):
         await state.set_state(User.registration_handle_guild_end)
 
         # Send a message to the user with the company name and remove the reply keyboard
-        await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
+        await message.reply(COMPANY_NAME, reply_markup=ReplyKeyboardRemove())
+
+        # Send a message to the user with the skip button and the skip keyboard
+        await message.reply(SKIP_BUTTON, reply_markup=skip_keyboard())
     except Exception as e:
         # Print the error if any exception occurs
         print("Error in handle_guild_start:", e)
@@ -194,7 +197,10 @@ async def handle_guild_start_guild3(message: Message, state: FSMContext):
         await state.set_state(User.registration_handle_guild_end)
 
         # Send a message to the user with the company name and remove the reply keyboard
-        await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
+        await message.reply(COMPANY_NAME, reply_markup=ReplyKeyboardRemove())
+
+        # Send a message to the user with the skip button and the skip keyboard
+        await message.reply(SKIP_BUTTON, reply_markup=skip_keyboard())
     except Exception as e:
         # Print the error if any exception occurs
         print("Error in handle_guild_start:", e)
