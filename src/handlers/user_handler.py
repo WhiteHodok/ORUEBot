@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 from config import bot
 from src.keyboards.user_keyboard import (
-    user_keyboard_button, user_keyboard
+    user_keyboard_button, user_keyboard, guild_keyboard_button, guild_keyboard
 )
 from src.phrases import (
     SURVEY_EXAMPLE,
@@ -72,15 +72,24 @@ async def start_survey_registration(message: Message, state: FSMContext):
     await bot.send_message(chat_id, SURVEY_FIO_EXAMPLE)
 
 
-
 @user_router.message(User.registration_start)
 async def handle_fio_start(message: Message, state: FSMContext):
+    """
+    Handles the start of the FIO input in the survey registration process.
+
+    Args:
+        message (Message): The message object containing the user's input.
+        state (FSMContext): The finite state machine context.
+
+    Returns:
+        None
+    """
     chat_id = message.chat.id
     fio = message.text
     if validate_fio(fio):
         await state.update_data(fio=fio)
         await state.set_state(User.registration_handle_guild_start)
-        await message.reply(SURVEY_GUILD_EXAMPLE)
+        await message.reply(SURVEY_GUILD_EXAMPLE, reply_markup=guild_keyboard())
     else:
         await message.reply(SURVEY_FIO_VALIDATION)
         await state.set_state(User.registration_start)
