@@ -4,10 +4,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 from config import bot
 from src.keyboards.user_keyboard import (
-    user_keyboard_button, user_keyboard, guild_keyboard_button, guild_keyboard
+    genre_of_work_keyboard, skip_keyboard, user_keyboard_button, user_keyboard, guild_keyboard_button, guild_keyboard, genres_of_work
 )
 from src.phrases import (
+    COMPANY_NAME,
+    GENRE_OF_WORK,
     SURVEY_EXAMPLE,
+    SURVEY_EXAMPLE_ERROR,
     SURVEY_START_REGISTRATION,
     SURVEY_FIO_EXAMPLE,
     SURVEY_FIO_VALIDATION,
@@ -84,7 +87,6 @@ async def handle_fio_start(message: Message, state: FSMContext):
     Returns:
         None
     """
-    chat_id = message.chat.id
     fio = message.text
     if validate_fio(fio):
         await state.update_data(fio=fio)
@@ -93,3 +95,71 @@ async def handle_fio_start(message: Message, state: FSMContext):
     else:
         await message.reply(SURVEY_FIO_VALIDATION)
         await state.set_state(User.registration_start)
+
+
+@user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild1'])
+async def handle_guild_start_guild1(message: Message, state: FSMContext):
+    try:
+        guild = message.text
+        await state.update_data(guild=guild)
+        await state.set_state(User.registration_handle_guild_end)
+        await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
+    except Exception as e:
+        print("Error in handle_guild_start:", e)
+
+@user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild2'])
+async def handle_guild_start_guild2(message: Message, state: FSMContext):
+    try:
+        guild = message.text
+        await state.update_data(guild=guild)
+        await state.set_state(User.registration_handle_guild_end)
+        await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
+    except Exception as e:
+        print("Error in handle_guild_start:", e)
+
+@user_router.message(User.registration_handle_guild_start, F.text == guild_keyboard_button['guild3'])
+async def handle_guild_start_guild3(message: Message, state: FSMContext):
+    try:
+        guild = message.text
+        await state.update_data(guild=guild)
+        await state.set_state(User.registration_handle_guild_end)
+        await message.reply(COMPANY_NAME, reply_markup=skip_keyboard())
+    except Exception as e:
+        print("Error in handle_guild_start:", e)
+
+@user_router.message(User.registration_handle_guild_end, F.text == 'skip')
+async def handle_guild_end_skip(message: Message, state: FSMContext):
+    try:
+        company_name = 'Не указано'
+        await state.update_data(company_name=company_name)
+        await state.set_state(User.registration_handle_genre_of_work)
+        await message.reply(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
+    except Exception as e:
+        print("Error in handle_guild_end:", e)
+
+@user_router.message(User.registration_handle_guild_end)
+async def handle_guild_end(message: Message, state: FSMContext):
+    try:
+        company_name = message.text
+        await state.update_data(company_name=company_name)
+        await state.set_state(User.registration_handle_genre_of_work)
+        await message.reply(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
+    except Exception as e:
+        print("Error in handle_guild_end:", e)
+
+@user_router.callback_query(User.registration_handle_genre_of_work)
+async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMContext):
+    """
+    Handle callback query for genre of work.
+    """
+    try:
+        genre = callback_query.data
+        if genre == "confirm":
+            selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
+            await state.update_data(genres_of_work=selected_genres)
+        elif genre in genres_of_work:
+            genres_of_work[genre] = not genres_of_work[genre]
+            await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
+    except Exception as e:
+        print("Error in handle_genre_of_work_start:", e)
+
