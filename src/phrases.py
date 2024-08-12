@@ -2,7 +2,8 @@ CAPTION_QR_TEXT = "Для регистрации в боте, отсканиру
 WRONG_QR_TEXT = "Неверный QR-код"
 QUALIFIED_USER_TEXT = "Рады видеть вас снова!"
 QR_SUCCESS_TEXT = "QR-код успешно сканирован, вы допущены далее"
-
-
-
-
+SURVEY_EXAMPLE = "Пример анкеты TODO"  # TODO
+SURVEY_START_REGISTRATION = "Начинаем регистрацию..."
+SURVEY_FIO_EXAMPLE = "Введите ваше ФИО, в следующем формате: Иванов Иван Иванович"
+SURVEY_FIO_VALIDATION = "ФИО введено некорректно"
+SURVEY_GUILD_EXAMPLE = "Выберите вашу гильдию"
