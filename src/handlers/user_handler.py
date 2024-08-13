@@ -24,6 +24,7 @@ from src.phrases import (
     EMAIL_SUCCESS,
     EMAIL_VALIDATION,
     GENRE_OF_WORK,
+    GENRE_OF_WORK_VALIDATION,
     PHONE_NUMBER_VALIDATION,
     PHONE_SUCCESS,
     REGISTRATION_END_ASK,
@@ -311,18 +312,20 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
     Handle callback query for genre of work.
     """
     try:
+        chat_id = callback_query.message.chat.id
         genre = callback_query.data
-        if genre == "confirm":
+        selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
+        if genre == "confirm" and selected_genres:
             chat_id = callback_query.message.chat.id
-            selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
-            await state.update_data(
-                genres_of_work=selected_genres)  # TODO Можно ничего не выбирать и нажать подтвердить, надо пофиксить
+            await state.update_data(genres_of_work=selected_genres) 
             await bot.send_message(chat_id, CATEGORIES + ", ".join(selected_genres))
             await bot.send_message(chat_id, MEDIA_CAPTION, reply_markup=skip_keyboard())
             await state.set_state(User.registration_handle_photo_survey_start)
         elif genre in genres_of_work:
             genres_of_work[genre] = not genres_of_work[genre]
             await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
+        else:
+            await bot.send_message(chat_id, GENRE_OF_WORK_VALIDATION)
     except Exception as e:
         print("Error in handle_genre_of_work_start:", e)
 
@@ -351,7 +354,6 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                 case 'text':
                     supabase.table("Surveys").insert({
                         "chat_id": chat_id,
-                        "message_id": message.message_id,
                         "text": message.text
                     }).execute()
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
@@ -359,25 +361,28 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'photo':
                     supabase.table("Surveys").insert({
-                        "text": message.caption,
                         "chat_id": chat_id,
-                        "message_id": message.message_id}).execute()
+                        "photo_id": message.photo[-1].file_id,  # Сохраняем ID изображения
+                        "text": message.caption  # Сохраняем caption как текст
+                    }).execute()
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'video':
                     supabase.table("Surveys").insert({
-                        "text": message.caption,
                         "chat_id": chat_id,
-                        "message_id": message.message_id}).execute()
+                        "video_id": message.video.file_id,  # Сохраняем ID видео
+                        "text": message.caption  # Сохраняем caption как текст
+                    }).execute()
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'document':
                     supabase.table("Surveys").insert({
-                        "text": message.caption,
                         "chat_id": chat_id,
-                        "message_id": message.message_id}).execute()
+                        "document_id": message.document.file_id,  # Сохраняем ID документа
+                        "text": message.caption  # Сохраняем caption как текст
+                    }).execute()
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
@@ -385,47 +390,26 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                     await state.set_state(User.registration_handle_photo_survey_start)
                     await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
         except Exception as e:
-            print("Error in handle_mediagroup_start:", e)
+            print("Error in handle_media:", e)
             await state.set_state(User.registration_handle_photo_survey_start)
             await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
     else:
         try:
-            media = list()
+            media_ids = [content.photo[-1].file_id if content.photo else content.video.file_id for content in album]
             caption = album[0].caption
-            media.append(to_input_media(album[0], caption))
-            for content in range(1, len(album)):
-                media.append(to_input_media(message=album[content]))
             supabase.table("Surveys").insert({
-                "text": caption,
                 "chat_id": chat_id,
-                'message_id': message.message_id
+                "media_ids": media_ids,  # Сохраняем массив ID изображений или видео
+                "text": caption  # Сохраняем caption как текст
             }).execute()
             await bot.send_message(chat_id, MEDIA_SUCCESS)
             await state.set_state(User.registration_handle_photo_survey_end)
             await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
         except Exception as e:
-            print("Error in handle_mediagroup_start:", e)
+            print("Error in handle_mediagroup:", e)
             await state.set_state(User.registration_handle_photo_survey_start)
             await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
-        except:
-            try:
-                media = list()
-                caption = album[0].caption
-                media.append(to_input_media(album[0], caption))
-                for content in range(1, len(album)):
-                    media.append(to_input_media(message=album[content]))
-                supabase.table("Surveys").insert({
-                    "text": caption,
-                    "chat_id": chat_id,
-                    'message_id': message.message_id
-                }).execute()
-                await bot.send_message(chat_id, MEDIA_SUCCESS)
-                await state.set_state(User.registration_handle_photo_survey_end)
-                await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
-            except Exception as e:
-                print("Error in handle_mediagroup_start:", e)
-                await state.set_state(User.registration_handle_photo_survey_start)
-                await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
+
 
 
 @user_router.message(User.registration_handle_photo_survey_end)
@@ -449,7 +433,7 @@ async def handle_survey_phone_number(message: Message, state: FSMContext):
 async def skip_phone_number(call: CallbackQuery, state: FSMContext):
     try:
         chat_id = call.message.chat.id
-        phone_number = '0'
+        phone_number = 'Не указан'
         await state.update_data(phone_number=phone_number)
         await state.set_state(User.registration_handle_email_start)
         await bot.send_message(chat_id, EMAIL_ADDRESS, reply_markup=skip_keyboard())
@@ -491,78 +475,21 @@ async def handle_email_address(message: Message, state: FSMContext):
                     'phone': phone_number,
                     'mail': email_address
                 }).execute()
+                response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq("chat_id", chat_id).execute()
+                data = response.data[0]
+                if data.get("photo_id"):
+                    await bot.send_photo(chat_id, photo=data["photo_id"], caption=data.get("text", ""))
+                elif data.get("video_id"):
+                    await bot.send_video(chat_id, video=data["video_id"], caption=data.get("text", ""))
+                elif data.get("document_id"):
+                    await bot.send_document(chat_id, document=data["document_id"], caption=data.get("text", ""))
+                elif data.get("media_ids"):
+                    media_group = []
+                    for media_id in data["media_ids"]:
+                        media_group.append(InputMediaPhoto(media_id))  
+                    await bot.send_media_group(chat_id, media=media_group)
                 await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
                 await state.set_state(User.registration_end)
-            elif fio and guild and genre_of_work and email_address:
-                company_name = NOT_INDEFINED
-                phone_number = NOT_INDEFINED
-                message_text = (
-                    f"{REGISTRATION_END_ASK}\n\n"
-                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
-                    f"Ваша Гильдия⚜️: {guild}\n"
-                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
-                    f"Ваши категории🔖: {genre_of_work}\n"
-                    f"Ваш номер телефона📱: {phone_number}\n"
-                    f"Ваш Email📧: {email_address}"
-                )
-                supabase.table("UserData").upsert({
-                    "chat_id": chat_id,
-                    "fio": fio,
-                    'guild': guild,
-                    'company': company_name,
-                    'genre_work': genre_of_work,
-                    'phone': phone_number,
-                    'mail': email_address
-                }).execute()
-                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
-                await state.set_state(User.registration_end)
-            elif fio and guild and genre_of_work and email_address and company_name:
-                phone_number = NOT_INDEFINED
-                message_text = (
-                    f"{REGISTRATION_END_ASK}\n\n"
-                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
-                    f"Ваша Гильдия⚜️: {guild}\n"
-                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
-                    f"Ваши категории🔖: {genre_of_work}\n"
-                    f"Ваш номер телефона📱: {phone_number}\n"
-                    f"Ваш Email📧: {email_address}"
-                )
-                supabase.table("UserData").upsert({
-                    "chat_id": chat_id,
-                    "fio": fio,
-                    'guild': guild,
-                    'company': company_name,
-                    'genre_work': genre_of_work,
-                    'phone': phone_number,
-                    'mail': email_address
-                }).execute()
-                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
-                await state.set_state(User.registration_end)
-            elif fio and guild and genre_of_work and email_address and phone_number:
-                company_name = NOT_INDEFINED
-                message_text = (
-                    f"{REGISTRATION_END_ASK}\n\n"
-                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
-                    f"Ваша Гильдия⚜️: {guild}\n"
-                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
-                    f"Ваши категории🔖: {genre_of_work}\n"
-                    f"Ваш номер телефона📱: {phone_number}\n"
-                    f"Ваш Email📧: {email_address}"
-                )
-                supabase.table("UserData").upsert({
-                    "chat_id": chat_id,
-                    "fio": fio,
-                    'guild': guild,
-                    'company': company_name,
-                    'genre_work': genre_of_work,
-                    'phone': phone_number,
-                    'mail': email_address
-                }).execute()
-                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
-                await state.set_state(User.registration_end)
-
-
-
             else:
                 await state.set_state(User.registration_start)
                 await bot.send_message(chat_id, SURVEY_START_REGISTRATION, reply_markup=None)
@@ -586,8 +513,8 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
         phone_number = data.get('phone_number')
         email_address = 'Не указан'
         if fio and guild and company_name and genre_of_work and phone_number and email_address:
-            message_text = (
-                f"{REGISTRATION_END_ASK}\n\n"
+                message_text = (
+                    f"{REGISTRATION_END_ASK}\n\n"
                     f"Ваше ФИО👨🏻‍💼: {fio}\n"
                     f"Ваша Гильдия⚜️: {guild}\n"
                     f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
@@ -595,8 +522,30 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
                     f"Ваш номер телефона📱: {phone_number}\n"
                     f"Ваш Email📧: {email_address}"
                 )
-            await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
-            await state.set_state(User.registration_end)
+                supabase.table("UserData").upsert({
+                    "chat_id": chat_id,
+                    "fio": fio,
+                    'guild': guild,
+                    'company': company_name,
+                    'genre_work': genre_of_work,
+                    'phone': phone_number,
+                    'mail': email_address
+                }).execute()
+                response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq("chat_id", chat_id).execute()
+                data = response.data[0]
+                if data.get("photo_id"):
+                    await bot.send_photo(chat_id, photo=data["photo_id"], caption=data.get("text", ""))
+                elif data.get("video_id"):
+                    await bot.send_video(chat_id, video=data["video_id"], caption=data.get("text", ""))
+                elif data.get("document_id"):
+                    await bot.send_document(chat_id, document=data["document_id"], caption=data.get("text", ""))
+                elif data.get("media_ids"):
+                    media_group = []
+                    for media_id in data["media_ids"]:
+                        media_group.append(InputMediaPhoto(media_id))  
+                    await bot.send_media_group(chat_id, media=media_group)
+                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
+                await state.set_state(User.registration_end)
         else:
             await state.set_state(User.registration_start)
             await bot.send_message(chat_id, SURVEY_START_REGISTRATION, reply_markup=None)
@@ -605,93 +554,27 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
         await state.set_state(User.registration_handle_email_start)
 
 
-# @user_router.callback_query(User.registration_end, F.data == 'confirm')
-# async def confirm_registration(call: CallbackQuery, state: FSMContext):
-#     try:
-#         chat_id = call.message.chat.id
-#         data = await state.get_data()
-#         fio = data.get('fio')
-#         guild = data.get('guild')
-#         company_name = data.get('company_name')
-#         genre_of_work = data.get('genres_of_work')
-#         phone_number = data.get('phone_number')
-#         email_adress = 'Не указан'
-#         supabase.table("UserData").upsert({
-#             "chat_id": chat_id,
-#             "fio": fio,
-#             'guild': guild,
-#             'company': company_name,
-#             'genre_work': genre_of_work,
-#             'phone': phone_number,
-#             'mail': email_adress
-#         }).execute()
-#         # await bot.send_message(chat_id, REGISTRATION_END, reply_markup=main_keyboard()) #TODO Main menu keyboard +
-#         #  edit profile
-#     except Exception as e:
-#         print("Error in confirm_registration:", e)
-#
-#
-# @user_router.callback_query(User.registration_end, F.data == 'edit_fio')
-# async def edit_registration_fio(call: CallbackQuery, state: FSMContext):
-#     try:
-#         chat_id = call.message.chat.id
-#         await bot.send_message(chat_id, "ИЗМЕНИТЬ ИМЯ",
-#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование ФИО
-#         await state.set_state(Change.fio)
-#     except Exception as e:
-#         print("Error in edit_registration:", e)
-#
-#
-# @user_router.callback_query(User.registration_end, F.data == 'edit_guild')
-# async def edit_registration_guild(call: CallbackQuery, state: FSMContext):
-#     try:
-#         chat_id = call.message.chat.id
-#         await bot.send_message(chat_id, "ИЗМЕНИТЬ ГИЛЬДИЮ",
-#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Гильдии
-#         await state.set_state(Change.guild)
-#     except Exception as e:
-#         print("Error in edit_registration:", e)
-#
-#
-# @user_router.callback_query(User.registration_end, F.data == 'edit_company')
-# async def edit_registration_company(call: CallbackQuery, state: FSMContext):
-#     try:
-#         chat_id = call.message.chat.id
-#         await bot.send_message(chat_id, "ИЗМЕНИТЬ КОМПАНИЮ",
-#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Компании
-#         await state.set_state(Change.company)
-#     except Exception as e:
-#         print("Error in edit_registration:", e)
-#
-#
-# @user_router.callback_query(User.registration_end, F.data == 'edit_genre_of_work')
-# async def edit_registration_genre_of_work(call: CallbackQuery, state: FSMContext):
-#     try:
-#         chat_id = call.message.chat.id
-#         await bot.send_message(chat_id, "ИЗМЕНИТЬ КАТЕГОРИИ",
-#                                reply_markup=genre_of_work_keyboard())  # TODO: добавить редактирование Категории
-#         await state.set_state(Change.category)
-#     except Exception as e:
-#         print("Error in edit_registration:", e)
-#
-#
-# @user_router.callback_query(User.registration_end, F.data == 'edit_phone_number')
-# async def edit_registration_phone_number(call: CallbackQuery, state: FSMContext):
-#     try:
-#         chat_id = call.message.chat.id
-#         await bot.send_message(chat_id, "ИЗМЕНИТЬ ТЕЛЕФОН",
-#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Телефона
-#         await state.set_state(Change.phone)
-#     except Exception as e:
-#         print("Error in edit_registration:", e)
-#
-#
-# @user_router.callback_query(User.registration_end, F.data == 'edit_email_address')
-# async def edit_registration_email_address(call: CallbackQuery, state: FSMContext):
-#     try:
-#         chat_id = call.message.chat.id
-#         await bot.send_message(chat_id, "ИЗМЕНИТЬ EMAIL",
-#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Email
-#         await state.set_state(Change.mail)
-#     except Exception as e:
-#         print("Error in edit_registration:", e)
+@user_router.callback_query(User.registration_end, F.data == 'confirm')
+async def confirm_registration(call: CallbackQuery, state: FSMContext):
+    try:
+        chat_id = call.message.chat.id
+        data = await state.get_data()
+        fio = data.get('fio')
+        guild = data.get('guild')
+        company_name = data.get('company_name')
+        genre_of_work = data.get('genres_of_work')
+        phone_number = data.get('phone_number')
+        email_adress = 'Не указан'
+        supabase.table("UserData").upsert({
+            "chat_id": chat_id,
+            "fio": fio,
+            'guild': guild,
+            'company': company_name,
+            'genre_work': genre_of_work,
+            'phone': phone_number,
+            'mail': email_adress
+        }).execute()
+        # await bot.send_message(chat_id, REGISTRATION_END, reply_markup=main_keyboard()) #TODO Main menu keyboard +
+        #  edit profile
+    except Exception as e:
+        print("Error in confirm_registration:", e)
