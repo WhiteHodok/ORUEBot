@@ -7,10 +7,11 @@ from aiogram.methods import DeleteWebhook
 from config import dp, bot
 from src.handlers.guest_handler import guest_router
 from src.handlers.user_handler import user_router
+from src.handlers.change_handler import change_router
 
 
 async def start():
-    dp.include_routers(guest_router, user_router)
+    dp.include_routers(guest_router, user_router, change_router)
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
