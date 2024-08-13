@@ -473,7 +473,8 @@ async def handle_email_address(message: Message, state: FSMContext):
                     'company': company_name,
                     'genre_work': genre_of_work,
                     'phone': phone_number,
-                    'mail': email_address
+                    'mail': email_address,
+                    'clicker': True
                 }).execute()
                 response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq("chat_id", chat_id).execute()
                 data = response.data[0]
@@ -529,7 +530,8 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
                     'company': company_name,
                     'genre_work': genre_of_work,
                     'phone': phone_number,
-                    'mail': email_address
+                    'mail': email_address,
+                    'clicker': True
                 }).execute()
                 response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq("chat_id", chat_id).execute()
                 data = response.data[0]
@@ -572,7 +574,8 @@ async def confirm_registration(call: CallbackQuery, state: FSMContext):
             'company': company_name,
             'genre_work': genre_of_work,
             'phone': phone_number,
-            'mail': email_adress
+            'mail': email_adress,
+            'clicker': True
         }).execute()
         # await bot.send_message(chat_id, REGISTRATION_END, reply_markup=main_keyboard()) #TODO Main menu keyboard +
         #  edit profile
