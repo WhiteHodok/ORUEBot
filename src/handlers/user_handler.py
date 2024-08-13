@@ -563,28 +563,30 @@ async def show_my_survey(message: Message, state: FSMContext):
     text_response = supabase.table("UserData").select("fio", "guild", "company", "genre_work", "phone", "mail").eq(
         "chat_id", chat_id).execute().data
 
-    message_text = f"Ваше ФИО👨🏻‍💼: {text_response[0]['fio']}\n" \
-                   f"Ваша Гильдия⚜️: {text_response[0]['guild']}\n" \
+    message_text = f"ФИО👨🏻‍💼: {text_response[0]['fio']}\n" \
+                   f"Гильдия⚜️: {text_response[0]['guild']}\n" \
                    f"Ваша Компания🏛️: {text_response[0]['company']}\n" \
-                   f"Ваши категории🔖: {text_response[0]['genre_work']}\n" \
-                   f"Ваш номер телефона📱: {text_response[0]['phone']}\n" \
-                   f"Ваш Email📧: {text_response[0]['mail']}"
+                   f"Категории🔖: {text_response[0]['genre_work']}\n" \
+                   f"Номер телефона📱: {text_response[0]['phone']}\n" \
+                   f"Email📧: {text_response[0]['mail']}"
 
     response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq(
         "chat_id", chat_id).execute()
     data = response.data[0]
     if data.get("photo_id"):
-        await bot.send_photo(chat_id, photo=data["photo_id"], caption=data.get("text", ""))
+        await bot.send_photo(chat_id, photo=data["photo_id"], caption=f"Текст вашей визитки: \n " + data.get("text", "") + f"\n \n" + message_text)
     elif data.get("video_id"):
-        await bot.send_video(chat_id, video=data["video_id"], caption=data.get("text", ""))
+        await bot.send_video(chat_id, video=data["video_id"], caption=f"Текст вашей визитки: \n " + data.get("text", "") + f"\n \n" + message_text)
     elif data.get("document_id"):
-        await bot.send_document(chat_id, document=data["document_id"], caption=data.get("text", ""))
+        await bot.send_document(chat_id, document=data["document_id"], caption=f"Текст вашей визитки: \n " + data.get("text", "") + f"\n \n" + message_text)
     elif data.get("media_ids"):
         media_group = []
-        for media_id in data["media_ids"]:
+        first_media = InputMediaPhoto(data["media_ids"][0], caption=data.get("text", ""))
+        media_group.append(first_media)
+        for media_id in data["media_ids"][1:]:
             media_group.append(InputMediaPhoto(media_id))
         await bot.send_media_group(chat_id, media=media_group)
-    await bot.send_message(chat_id, message_text, reply_markup=user_keyboard())
+
 
 
 

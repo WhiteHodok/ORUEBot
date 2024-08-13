@@ -121,5 +121,5 @@ def registration_edit_keyboard():
     kb_builder.row(InlineKeyboardButton(text="Редактировать Категории", callback_data="edit_genre_of_work"))
     kb_builder.row(InlineKeyboardButton(text="Редактировать Телефон", callback_data="edit_phone_number"))
     kb_builder.row(InlineKeyboardButton(text="Редактировать Email", callback_data="edit_email_address"))
-    kb_builder.row(InlineKeyboardButton(text="✅Подтвердить", callback_data="confirm"))
+    kb_builder.row(InlineKeyboardButton(text="Изменить визитку", callback_data="edit_media_group"))
     return kb_builder.as_markup()
