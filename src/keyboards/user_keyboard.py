@@ -77,6 +77,30 @@ def genre_of_work_keyboard():
     return kb_builder.as_markup()
 
 
+registered_keyboard_buttons = {
+    "button1": "📜Моя анкета",
+    "button2": "📝Поиск",
+}
+
+
+def registered_keyboard():
+    """
+    Creates a user keyboard with two buttons.
+
+    Returns:
+        ReplyKeyboardMarkup: The user keyboard with two buttons.
+    """
+    registered_keyboard = ReplyKeyboardBuilder()
+    button1 = KeyboardButton(text=registered_keyboard_buttons['button1'])
+
+    button2 = KeyboardButton(text=registered_keyboard_buttons['button2'])
+
+    registered_keyboard.row(button1)
+    registered_keyboard.row(button2)
+
+    return registered_keyboard.as_markup(resize_keyboard=True)
+
+
 def skip_keyboard():
     """
     Creates an inline keyboard markup with a single button labeled "Пропустить" (Skip in English).

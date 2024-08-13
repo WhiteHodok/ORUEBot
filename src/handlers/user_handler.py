@@ -13,7 +13,9 @@ from src.keyboards.user_keyboard import (
     user_keyboard,
     guild_keyboard_button,
     guild_keyboard,
-    genres_of_work
+    genres_of_work,
+    registered_keyboard,
+    registered_keyboard_buttons
 )
 from src.phrases import (
     COMPANY_NAME,
@@ -32,9 +34,15 @@ from src.phrases import (
     SURVEY_FIO_VALIDATION,
     SURVEY_GUILD_EXAMPLE,
     SKIP_BUTTON,
-    CATEGORIES, MEDIA_CAPTION, MEDIA_SUCCESS, SURVEY_PHONE_NUMBER, MEDIA_VALIDATION
+    CATEGORIES,
+    MEDIA_CAPTION,
+    MEDIA_SUCCESS,
+    SURVEY_PHONE_NUMBER,
+    MEDIA_VALIDATION,
+    NOT_INDEFINED
 )
 from src.states.user_states import User
+from src.states.change_states import Change
 from src.middlewares.user_verification_middleware import VerificationMiddleware
 from src.middlewares.album_middleware import *
 from src.handlers.user_validation import (
@@ -307,9 +315,10 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
         if genre == "confirm":
             chat_id = callback_query.message.chat.id
             selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
-            await state.update_data(genres_of_work=selected_genres) #TODO Можно ничего не выбирать и нажать подтвердить, надо пофиксить
+            await state.update_data(
+                genres_of_work=selected_genres)  # TODO Можно ничего не выбирать и нажать подтвердить, надо пофиксить
             await bot.send_message(chat_id, CATEGORIES + ", ".join(selected_genres))
-            await bot.send_message(chat_id, MEDIA_CAPTION, reply_markup=skip_keyboard()) 
+            await bot.send_message(chat_id, MEDIA_CAPTION, reply_markup=skip_keyboard())
             await state.set_state(User.registration_handle_photo_survey_start)
         elif genre in genres_of_work:
             genres_of_work[genre] = not genres_of_work[genre]
@@ -378,7 +387,7 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
         except Exception as e:
             print("Error in handle_mediagroup_start:", e)
             await state.set_state(User.registration_handle_photo_survey_start)
-            await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())       
+            await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
     else:
         try:
             media = list()
@@ -418,12 +427,13 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                 await state.set_state(User.registration_handle_photo_survey_start)
                 await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
 
+
 @user_router.message(User.registration_handle_photo_survey_end)
 async def handle_survey_phone_number(message: Message, state: FSMContext):
     try:
         chat_id = message.chat.id
         phone_number = message.text
-        if validate_phone_number(phone_number): 
+        if validate_phone_number(phone_number):
             await state.update_data(phone_number=phone_number)
             await bot.send_message(chat_id, PHONE_SUCCESS)
             await state.set_state(User.registration_handle_email_start)
@@ -446,6 +456,7 @@ async def skip_phone_number(call: CallbackQuery, state: FSMContext):
     except Exception as e:
         print("Error in handle_guild_end:", e)
 
+
 @user_router.message(User.registration_handle_email_start)
 async def handle_email_address(message: Message, state: FSMContext):
     try:
@@ -464,15 +475,94 @@ async def handle_email_address(message: Message, state: FSMContext):
             if fio and guild and company_name and genre_of_work and phone_number and email_address:
                 message_text = (
                     f"{REGISTRATION_END_ASK}\n\n"
-                    f"Ваше ФИО: {fio}\n"
-                    f"Ваша Гильдия: {guild}\n"
-                    f"Ваша Компания: {company_name}\n" #TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
-                    f"Ваши категории: {genre_of_work}\n"
-                    f"Ваш номер телефона: {phone_number}\n"
-                    f"Ваш Email: {email_address}"
+                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
+                    f"Ваша Гильдия⚜️: {guild}\n"
+                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
+                    f"Ваши категории🔖: {genre_of_work}\n"
+                    f"Ваш номер телефона📱: {phone_number}\n"
+                    f"Ваш Email📧: {email_address}"
                 )
-                await bot.send_message(chat_id, message_text, reply_markup=registration_edit_keyboard())
+                supabase.table("UserData").upsert({
+                    "chat_id": chat_id,
+                    "fio": fio,
+                    'guild': guild,
+                    'company': company_name,
+                    'genre_work': genre_of_work,
+                    'phone': phone_number,
+                    'mail': email_address
+                }).execute()
+                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
                 await state.set_state(User.registration_end)
+            elif fio and guild and genre_of_work and email_address:
+                company_name = NOT_INDEFINED
+                phone_number = NOT_INDEFINED
+                message_text = (
+                    f"{REGISTRATION_END_ASK}\n\n"
+                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
+                    f"Ваша Гильдия⚜️: {guild}\n"
+                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
+                    f"Ваши категории🔖: {genre_of_work}\n"
+                    f"Ваш номер телефона📱: {phone_number}\n"
+                    f"Ваш Email📧: {email_address}"
+                )
+                supabase.table("UserData").upsert({
+                    "chat_id": chat_id,
+                    "fio": fio,
+                    'guild': guild,
+                    'company': company_name,
+                    'genre_work': genre_of_work,
+                    'phone': phone_number,
+                    'mail': email_address
+                }).execute()
+                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
+                await state.set_state(User.registration_end)
+            elif fio and guild and genre_of_work and email_address and company_name:
+                phone_number = NOT_INDEFINED
+                message_text = (
+                    f"{REGISTRATION_END_ASK}\n\n"
+                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
+                    f"Ваша Гильдия⚜️: {guild}\n"
+                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
+                    f"Ваши категории🔖: {genre_of_work}\n"
+                    f"Ваш номер телефона📱: {phone_number}\n"
+                    f"Ваш Email📧: {email_address}"
+                )
+                supabase.table("UserData").upsert({
+                    "chat_id": chat_id,
+                    "fio": fio,
+                    'guild': guild,
+                    'company': company_name,
+                    'genre_work': genre_of_work,
+                    'phone': phone_number,
+                    'mail': email_address
+                }).execute()
+                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
+                await state.set_state(User.registration_end)
+            elif fio and guild and genre_of_work and email_address and phone_number:
+                company_name = NOT_INDEFINED
+                message_text = (
+                    f"{REGISTRATION_END_ASK}\n\n"
+                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
+                    f"Ваша Гильдия⚜️: {guild}\n"
+                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
+                    f"Ваши категории🔖: {genre_of_work}\n"
+                    f"Ваш номер телефона📱: {phone_number}\n"
+                    f"Ваш Email📧: {email_address}"
+                )
+                supabase.table("UserData").upsert({
+                    "chat_id": chat_id,
+                    "fio": fio,
+                    'guild': guild,
+                    'company': company_name,
+                    'genre_work': genre_of_work,
+                    'phone': phone_number,
+                    'mail': email_address
+                }).execute()
+                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
+                await state.set_state(User.registration_end)
+
+
+
             else:
                 await state.set_state(User.registration_start)
                 await bot.send_message(chat_id, SURVEY_START_REGISTRATION, reply_markup=None)
@@ -481,6 +571,7 @@ async def handle_email_address(message: Message, state: FSMContext):
     except Exception as e:
         print("Error in handle_email_address:", e)
         await state.set_state(User.registration_handle_email_start)
+
 
 @user_router.callback_query(User.registration_handle_email_start, F.data == 'skip')
 async def skip_email_address(call: CallbackQuery, state: FSMContext):
@@ -493,18 +584,18 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
         company_name = data.get('company_name')
         genre_of_work = data.get('genres_of_work')
         phone_number = data.get('phone_number')
-        email_adress = 'Не указан'
-        if fio and guild and company_name and genre_of_work and phone_number and email_adress:
+        email_address = 'Не указан'
+        if fio and guild and company_name and genre_of_work and phone_number and email_address:
             message_text = (
                 f"{REGISTRATION_END_ASK}\n\n"
-                f"Ваше ФИО: {fio}\n"
-                f"Ваша Гильдия: {guild}\n"
-                f"Ваша Компания: {company_name}\n"
-                f"Ваши категории: {genre_of_work}\n"
-                f"Ваш номер телефона: {phone_number}\n" #TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
-                f"Ваш Email: {email_adress}"
-            )
-            await bot.send_message(chat_id, message_text, reply_markup=registration_edit_keyboard())
+                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
+                    f"Ваша Гильдия⚜️: {guild}\n"
+                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
+                    f"Ваши категории🔖: {genre_of_work}\n"
+                    f"Ваш номер телефона📱: {phone_number}\n"
+                    f"Ваш Email📧: {email_address}"
+                )
+            await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
             await state.set_state(User.registration_end)
         else:
             await state.set_state(User.registration_start)
@@ -513,73 +604,94 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
         print("Error in skip_email_address:", e)
         await state.set_state(User.registration_handle_email_start)
 
-@user_router.callback_query(User.registration_end, F.data == 'confirm')
-async def confirm_registration(call: CallbackQuery, state: FSMContext):
-    try:
-        chat_id = call.message.chat.id
-        data = await state.get_data()
-        fio = data.get('fio')
-        guild = data.get('guild')
-        company_name = data.get('company_name')
-        genre_of_work = data.get('genres_of_work')
-        phone_number = data.get('phone_number')
-        email_adress = 'Не указан'
-        supabase.table("UserData").upsert({
-                    "chat_id":chat_id,
-                    "fio": fio,
-                    'guild': guild,
-                    'company': company_name,
-                    'genre_work': genre_of_work,
-                    'phone': phone_number,
-                    'mail': email_adress
-                }).execute()
-        # await bot.send_message(chat_id, REGISTRATION_END, reply_markup=main_keyboard()) #TODO Main menu keyboard + edit profile 
-    except Exception as e:
-        print("Error in confirm_registration:", e)
-@user_router.callback_query(User.registration_end, F.data == 'edit_fio')
-async def edit_registration_fio(call: CallbackQuery, state: FSMContext):
-    try:
-        chat_id = call.message.chat.id
-        await bot.send_message(chat_id, "ИЗМЕНИТЬ ИМЯ", reply_markup=skip_keyboard()) #TODO: добавить редактирование ФИО
-    except Exception as e:
-        print("Error in edit_registration:", e)
 
-@user_router.callback_query(User.registration_end, F.data == 'edit_guild')
-async def edit_registration_guild(call: CallbackQuery, state: FSMContext):        
-    try:
-        chat_id = call.message.chat.id
-        await bot.send_message(chat_id, "ИЗМЕНИТЬ ГИЛЬДИЮ", reply_markup=skip_keyboard()) #TODO: добавить редактирование Гильдии
-    except Exception as e:
-        print("Error in edit_registration:", e)
-
-@user_router.callback_query(User.registration_end, F.data == 'edit_company')
-async def edit_registration_company(call: CallbackQuery, state: FSMContext):
-    try:
-        chat_id = call.message.chat.id
-        await bot.send_message(chat_id, "ИЗМЕНИТЬ КОМПАНИЮ", reply_markup=skip_keyboard()) #TODO: добавить редактирование Компании
-    except Exception as e:
-        print("Error in edit_registration:", e)
-
-@user_router.callback_query(User.registration_end, F.data == 'edit_genre_of_work')
-async def edit_registration_genre_of_work(call: CallbackQuery, state: FSMContext):
-    try:
-        chat_id = call.message.chat.id
-        await bot.send_message(chat_id, "ИЗМЕНИТЬ КАТЕГОРИИ", reply_markup=genre_of_work_keyboard()) #TODO: добавить редактирование Категории
-    except Exception as e:
-        print("Error in edit_registration:", e)
-
-@user_router.callback_query(User.registration_end, F.data == 'edit_phone_number')
-async def edit_registration_phone_number(call: CallbackQuery, state: FSMContext):
-    try:
-        chat_id = call.message.chat.id
-        await bot.send_message(chat_id, "ИЗМЕНИТЬ ТЕЛЕФОН", reply_markup=skip_keyboard()) #TODO: добавить редактирование Телефона
-    except Exception as e:
-        print("Error in edit_registration:", e)
-
-@user_router.callback_query(User.registration_end, F.data == 'edit_email_address') 
-async def edit_registration_email_address(call: CallbackQuery, state: FSMContext):
-    try:
-        chat_id = call.message.chat.id
-        await bot.send_message(chat_id, "ИЗМЕНИТЬ EMAIL", reply_markup=skip_keyboard()) #TODO: добавить редактирование Email
-    except Exception as e:
-        print("Error in edit_registration:", e)
+# @user_router.callback_query(User.registration_end, F.data == 'confirm')
+# async def confirm_registration(call: CallbackQuery, state: FSMContext):
+#     try:
+#         chat_id = call.message.chat.id
+#         data = await state.get_data()
+#         fio = data.get('fio')
+#         guild = data.get('guild')
+#         company_name = data.get('company_name')
+#         genre_of_work = data.get('genres_of_work')
+#         phone_number = data.get('phone_number')
+#         email_adress = 'Не указан'
+#         supabase.table("UserData").upsert({
+#             "chat_id": chat_id,
+#             "fio": fio,
+#             'guild': guild,
+#             'company': company_name,
+#             'genre_work': genre_of_work,
+#             'phone': phone_number,
+#             'mail': email_adress
+#         }).execute()
+#         # await bot.send_message(chat_id, REGISTRATION_END, reply_markup=main_keyboard()) #TODO Main menu keyboard +
+#         #  edit profile
+#     except Exception as e:
+#         print("Error in confirm_registration:", e)
+#
+#
+# @user_router.callback_query(User.registration_end, F.data == 'edit_fio')
+# async def edit_registration_fio(call: CallbackQuery, state: FSMContext):
+#     try:
+#         chat_id = call.message.chat.id
+#         await bot.send_message(chat_id, "ИЗМЕНИТЬ ИМЯ",
+#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование ФИО
+#         await state.set_state(Change.fio)
+#     except Exception as e:
+#         print("Error in edit_registration:", e)
+#
+#
+# @user_router.callback_query(User.registration_end, F.data == 'edit_guild')
+# async def edit_registration_guild(call: CallbackQuery, state: FSMContext):
+#     try:
+#         chat_id = call.message.chat.id
+#         await bot.send_message(chat_id, "ИЗМЕНИТЬ ГИЛЬДИЮ",
+#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Гильдии
+#         await state.set_state(Change.guild)
+#     except Exception as e:
+#         print("Error in edit_registration:", e)
+#
+#
+# @user_router.callback_query(User.registration_end, F.data == 'edit_company')
+# async def edit_registration_company(call: CallbackQuery, state: FSMContext):
+#     try:
+#         chat_id = call.message.chat.id
+#         await bot.send_message(chat_id, "ИЗМЕНИТЬ КОМПАНИЮ",
+#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Компании
+#         await state.set_state(Change.company)
+#     except Exception as e:
+#         print("Error in edit_registration:", e)
+#
+#
+# @user_router.callback_query(User.registration_end, F.data == 'edit_genre_of_work')
+# async def edit_registration_genre_of_work(call: CallbackQuery, state: FSMContext):
+#     try:
+#         chat_id = call.message.chat.id
+#         await bot.send_message(chat_id, "ИЗМЕНИТЬ КАТЕГОРИИ",
+#                                reply_markup=genre_of_work_keyboard())  # TODO: добавить редактирование Категории
+#         await state.set_state(Change.category)
+#     except Exception as e:
+#         print("Error in edit_registration:", e)
+#
+#
+# @user_router.callback_query(User.registration_end, F.data == 'edit_phone_number')
+# async def edit_registration_phone_number(call: CallbackQuery, state: FSMContext):
+#     try:
+#         chat_id = call.message.chat.id
+#         await bot.send_message(chat_id, "ИЗМЕНИТЬ ТЕЛЕФОН",
+#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Телефона
+#         await state.set_state(Change.phone)
+#     except Exception as e:
+#         print("Error in edit_registration:", e)
+#
+#
+# @user_router.callback_query(User.registration_end, F.data == 'edit_email_address')
+# async def edit_registration_email_address(call: CallbackQuery, state: FSMContext):
+#     try:
+#         chat_id = call.message.chat.id
+#         await bot.send_message(chat_id, "ИЗМЕНИТЬ EMAIL",
+#                                reply_markup=skip_keyboard())  # TODO: добавить редактирование Email
+#         await state.set_state(Change.mail)
+#     except Exception as e:
+#         print("Error in edit_registration:", e)
