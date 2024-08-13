@@ -317,7 +317,7 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
         selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
         if genre == "confirm" and selected_genres:
             chat_id = callback_query.message.chat.id
-            await state.update_data(genres_of_work=selected_genres) 
+            await state.update_data(genres_of_work=selected_genres)
             await bot.send_message(chat_id, CATEGORIES + ", ".join(selected_genres))
             await bot.send_message(chat_id, MEDIA_CAPTION, reply_markup=skip_keyboard())
             await state.set_state(User.registration_handle_photo_survey_start)
@@ -411,7 +411,6 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
             await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
 
 
-
 @user_router.message(User.registration_handle_photo_survey_end)
 async def handle_survey_phone_number(message: Message, state: FSMContext):
     try:
@@ -476,7 +475,8 @@ async def handle_email_address(message: Message, state: FSMContext):
                     'mail': email_address,
                     'clicker': True
                 }).execute()
-                response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq("chat_id", chat_id).execute()
+                response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id",
+                                                            "media_ids").eq("chat_id", chat_id).execute()
                 data = response.data[0]
                 if data.get("photo_id"):
                     await bot.send_photo(chat_id, photo=data["photo_id"], caption=data.get("text", ""))
@@ -487,7 +487,7 @@ async def handle_email_address(message: Message, state: FSMContext):
                 elif data.get("media_ids"):
                     media_group = []
                     for media_id in data["media_ids"]:
-                        media_group.append(InputMediaPhoto(media_id))  
+                        media_group.append(InputMediaPhoto(media_id))
                     await bot.send_media_group(chat_id, media=media_group)
                 await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
                 await state.set_state(User.registration_end)
@@ -514,40 +514,41 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
         phone_number = data.get('phone_number')
         email_address = 'Не указан'
         if fio and guild and company_name and genre_of_work and phone_number and email_address:
-                message_text = (
-                    f"{REGISTRATION_END_ASK}\n\n"
-                    f"Ваше ФИО👨🏻‍💼: {fio}\n"
-                    f"Ваша Гильдия⚜️: {guild}\n"
-                    f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
-                    f"Ваши категории🔖: {genre_of_work}\n"
-                    f"Ваш номер телефона📱: {phone_number}\n"
-                    f"Ваш Email📧: {email_address}"
-                )
-                supabase.table("UserData").upsert({
-                    "chat_id": chat_id,
-                    "fio": fio,
-                    'guild': guild,
-                    'company': company_name,
-                    'genre_work': genre_of_work,
-                    'phone': phone_number,
-                    'mail': email_address,
-                    'clicker': True
-                }).execute()
-                response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq("chat_id", chat_id).execute()
-                data = response.data[0]
-                if data.get("photo_id"):
-                    await bot.send_photo(chat_id, photo=data["photo_id"], caption=data.get("text", ""))
-                elif data.get("video_id"):
-                    await bot.send_video(chat_id, video=data["video_id"], caption=data.get("text", ""))
-                elif data.get("document_id"):
-                    await bot.send_document(chat_id, document=data["document_id"], caption=data.get("text", ""))
-                elif data.get("media_ids"):
-                    media_group = []
-                    for media_id in data["media_ids"]:
-                        media_group.append(InputMediaPhoto(media_id))  
-                    await bot.send_media_group(chat_id, media=media_group)
-                await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
-                await state.set_state(User.registration_end)
+            message_text = (
+                f"{REGISTRATION_END_ASK}\n\n"
+                f"Ваше ФИО👨🏻‍💼: {fio}\n"
+                f"Ваша Гильдия⚜️: {guild}\n"
+                f"Ваша Компания🏛️: {company_name}\n"  # TODO Разобраться с визиткой, надо её вывести и потом иметь возможность отредачить
+                f"Ваши категории🔖: {genre_of_work}\n"
+                f"Ваш номер телефона📱: {phone_number}\n"
+                f"Ваш Email📧: {email_address}"
+            )
+            supabase.table("UserData").upsert({
+                "chat_id": chat_id,
+                "fio": fio,
+                'guild': guild,
+                'company': company_name,
+                'genre_work': genre_of_work,
+                'phone': phone_number,
+                'mail': email_address,
+                'clicker': True
+            }).execute()
+            response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq(
+                "chat_id", chat_id).execute()
+            data = response.data[0]
+            if data.get("photo_id"):
+                await bot.send_photo(chat_id, photo=data["photo_id"], caption=data.get("text", ""))
+            elif data.get("video_id"):
+                await bot.send_video(chat_id, video=data["video_id"], caption=data.get("text", ""))
+            elif data.get("document_id"):
+                await bot.send_document(chat_id, document=data["document_id"], caption=data.get("text", ""))
+            elif data.get("media_ids"):
+                media_group = []
+                for media_id in data["media_ids"]:
+                    media_group.append(InputMediaPhoto(media_id))
+                await bot.send_media_group(chat_id, media=media_group)
+            await bot.send_message(chat_id, message_text, reply_markup=registered_keyboard())
+            await state.set_state(User.registration_end)
         else:
             await state.set_state(User.registration_start)
             await bot.send_message(chat_id, SURVEY_START_REGISTRATION, reply_markup=None)
@@ -556,28 +557,36 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
         await state.set_state(User.registration_handle_email_start)
 
 
-@user_router.callback_query(User.registration_end, F.data == 'confirm')
-async def confirm_registration(call: CallbackQuery, state: FSMContext):
-    try:
-        chat_id = call.message.chat.id
-        data = await state.get_data()
-        fio = data.get('fio')
-        guild = data.get('guild')
-        company_name = data.get('company_name')
-        genre_of_work = data.get('genres_of_work')
-        phone_number = data.get('phone_number')
-        email_adress = 'Не указан'
-        supabase.table("UserData").upsert({
-            "chat_id": chat_id,
-            "fio": fio,
-            'guild': guild,
-            'company': company_name,
-            'genre_work': genre_of_work,
-            'phone': phone_number,
-            'mail': email_adress,
-            'clicker': True
-        }).execute()
-        # await bot.send_message(chat_id, REGISTRATION_END, reply_markup=main_keyboard()) #TODO Main menu keyboard +
-        #  edit profile
-    except Exception as e:
-        print("Error in confirm_registration:", e)
+@user_router.message(F.text == registered_keyboard_buttons["button1"], User.registration_end)
+async def show_my_survey(message: Message, state: FSMContext):
+    chat_id = message.chat.id
+    text_response = supabase.table("UserData").select("fio", "guild", "company", "genre_work", "phone", "mail").eq(
+        "chat_id", chat_id).execute().data
+
+    message_text = f"Ваше ФИО👨🏻‍💼: {text_response[0]['fio']}\n" \
+                   f"Ваша Гильдия⚜️: {text_response[0]['guild']}\n" \
+                   f"Ваша Компания🏛️: {text_response[0]['company']}\n" \
+                   f"Ваши категории🔖: {text_response[0]['genre_work']}\n" \
+                   f"Ваш номер телефона📱: {text_response[0]['phone']}\n" \
+                   f"Ваш Email📧: {text_response[0]['mail']}"
+
+    response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq(
+        "chat_id", chat_id).execute()
+    data = response.data[0]
+    if data.get("photo_id"):
+        await bot.send_photo(chat_id, photo=data["photo_id"], caption=data.get("text", ""))
+    elif data.get("video_id"):
+        await bot.send_video(chat_id, video=data["video_id"], caption=data.get("text", ""))
+    elif data.get("document_id"):
+        await bot.send_document(chat_id, document=data["document_id"], caption=data.get("text", ""))
+    elif data.get("media_ids"):
+        media_group = []
+        for media_id in data["media_ids"]:
+            media_group.append(InputMediaPhoto(media_id))
+        await bot.send_media_group(chat_id, media=media_group)
+    await bot.send_message(chat_id, message_text, reply_markup=user_keyboard())
+
+
+
+
+
