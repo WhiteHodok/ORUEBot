@@ -39,4 +39,9 @@ BACK_TO_PROFILE = "Вы вернулись в профиль"
 BACK_TO_MENU = "Вы вернулись в главное меню"
 EDIT_PROFILE = "Выберите какой параметр хотите изменить"
 CHANGE_FIO_SUCCESS = "Ваше ФИО успешно изменено"
+CHANGE_PHONE_SUCCESS = "Ваш номер телефона успешно изменен"
+CHANGE_EMAIL_SUCCESS = "Ваш почтовый адрес успешно изменен"
+CHANGE_COMPANY_SUCCESS = "Ваша компания успешно изменена"
+CHANGE_GUILD_SUCCESS = "Ваша гильдия успешно изменена"
+
 
