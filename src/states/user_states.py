@@ -19,5 +19,5 @@ class User(StatesGroup):
     registration_handle_phone_number_end = State()
     registration_handle_email_start = State()
     registration_end = State()
-
+    profile = State()
 

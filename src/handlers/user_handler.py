@@ -8,6 +8,7 @@ from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, MessageEn
 from config import bot
 from src.keyboards.user_keyboard import (
     genre_of_work_keyboard,
+    profile_keyboard,
     registration_edit_keyboard,
     skip_keyboard,
     user_keyboard_button,
@@ -16,9 +17,11 @@ from src.keyboards.user_keyboard import (
     guild_keyboard,
     genres_of_work,
     registered_keyboard,
-    registered_keyboard_buttons
+    registered_keyboard_buttons,
+    profile_keyboard_buttons
 )
 from src.phrases import (
+    BACK_TO_MENU,
     COMPANY_NAME,
     EMAIL_ADDRESS,
     EMAIL_SKIP,
@@ -28,6 +31,7 @@ from src.phrases import (
     GENRE_OF_WORK_VALIDATION,
     PHONE_NUMBER_VALIDATION,
     PHONE_SUCCESS,
+    PROFILE,
     REGISTRATION_END_ASK,
     SURVEY_EXAMPLE,
     SURVEY_EXAMPLE_ERROR,
@@ -106,10 +110,30 @@ async def show_survey_example(message: Message, state: FSMContext):
     """
     # Get the chat ID from the message
     chat_id = message.chat.id
-
     # Send the survey example to the user's chat
     await bot.send_message(chat_id, SURVEY_EXAMPLE)
 
+
+@user_router.message(F.text == user_keyboard_button['button1'], User.main)
+async def show_survey_example(message: Message, state: FSMContext):
+    """
+    This function is an asynchronous handler that is triggered when a user
+    selects the 'button1' from the user keyboard. It sends a message with the
+    survey example to the user's chat.
+
+    Args:
+        message (Message): The message object containing information about the
+        button selection.
+        state (FSMContext): The finite state machine context.
+
+    Returns:
+        None
+    """
+    # Get the chat ID from the message
+    chat_id = message.chat.id
+
+    # Send the survey example to the user's chat
+    await bot.send_message(chat_id, SURVEY_EXAMPLE)
 
 @user_router.message(F.text == user_keyboard_button['button2'], User.main)
 async def start_survey_registration(message: Message, state: FSMContext):
@@ -513,9 +537,9 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
 @user_router.message(F.text == registered_keyboard_buttons["button1"], User.registration_end)
 async def show_my_survey(message: Message, state: FSMContext):
     chat_id = message.chat.id
+    await bot.send_message(chat_id, PROFILE, reply_markup=profile_keyboard())
     text_response = supabase.table("UserData").select("fio", "guild", "company", "genre_work", "phone", "mail").eq(
         "chat_id", chat_id).execute().data
-
     message_text = f"ФИО👨🏻‍💼: {text_response[0]['fio']}\n" \
                    f"Гильдия⚜️: {text_response[0]['guild']}\n" \
                    f"Ваша Компания🏛️: {text_response[0]['company']}\n" \
@@ -542,10 +566,13 @@ async def show_my_survey(message: Message, state: FSMContext):
         await bot.send_media_group(chat_id, media=media_group)
     elif data.get("text"):
         await bot.send_message(chat_id, f"\n" +"Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
+    await state.set_state(User.profile)
 
-
-
-
-
-
-
+@user_router.message(F.text == profile_keyboard_buttons["button2"], User.profile)
+async def back_to_menu_from_profile(message: Message, state: FSMContext):
+    try:
+        chat_id = message.chat.id
+        await bot.send_message(chat_id, BACK_TO_MENU, reply_markup=registered_keyboard())
+        await state.set_state(User.registration_end)
+    except Exception as e:
+        print("Error in back_to_menu_from_profile:", e)
