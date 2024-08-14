@@ -11,7 +11,6 @@ from src.keyboards.user_keyboard import (
     profile_edit_keyboard,
     profile_keyboard,
     registered_keyboard,
-    registration_edit_keyboard,
     skip_keyboard,
     user_keyboard_button,
     user_keyboard,
@@ -28,7 +27,10 @@ from src.keyboards.user_keyboard import (
 from src.phrases import (
     BACK_TO_MENU,
     BACK_TO_PROFILE,
+    CHANGE_CATRGORY,
+    CHANGE_CATRGORY_SUCCESS,
     CHANGE_FIO_SUCCESS,
+    CHANGE_MEDIA,
     COMPANY_NAME,
     EDIT_PROFILE,
     EMAIL_ADDRESS,
@@ -36,6 +38,8 @@ from src.phrases import (
     EMAIL_SUCCESS,
     EMAIL_VALIDATION,
     GENRE_OF_WORK,
+    GENRE_OF_WORK_VALIDATION,
+    MEDIA_VALIDATION,
     PHONE_NUMBER_VALIDATION,
     PHONE_SUCCESS,
     REGISTRATION_END_ASK,
@@ -74,10 +78,6 @@ change_router.message.middleware(VerificationMiddleware())
 change_router.message.middleware(AlbumMiddleware())
 
 
-@change_router.message(F.text == profile_keyboard_buttons["button1"], User.profile)
-async def edit_profile(message: Message, state: FSMContext):
-    await message.answer(EDIT_PROFILE, reply_markup=profile_edit_keyboard())
-    await state.set_state(Change.profile_change)
 
 
 @change_router.message(F.text == edit_profile_buttons["button1"], Change.profile_change)
@@ -88,7 +88,7 @@ async def edit_profile_fio(message: Message, state: FSMContext):
 
 @change_router.message(
     StateFilter(Change.fio, Change.waiting_for_fio, Change.phone, Change.waiting_for_phone, Change.mail,
-                Change.waiting_for_mail, Change.company, Change.guild),
+                Change.waiting_for_mail, Change.company, Change.guild, Change.category, Change.survey_media),
     F.text == back_button['button1'])
 async def edit_profile_back(message: Message, state: FSMContext):
     await message.answer(BACK_TO_PROFILE,
@@ -199,6 +199,116 @@ async def edit_profile_change_guild_parser_number3(message: Message, state: FSMC
     supabase.table("UserData").update({"guild": guild}).eq("chat_id", chat_id).execute()
     await state.set_state(Change.profile_change)
     await message.answer(CHANGE_GUILD_SUCCESS + " на " + guild, reply_markup=profile_edit_keyboard())
+
+@change_router.message(F.text == edit_profile_buttons["button4"], Change.profile_change) 
+async def edit_profile_change_category(message: Message, state: FSMContext):
+    try:
+        chat_id = message.chat.id
+        await bot.send_message(chat_id, CHANGE_CATRGORY, reply_markup=back_keyboard())
+        await message.answer(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
+        await state.set_state(Change.category)
+    except Exception as e:
+        print("Error in edit_profile_change_category:", e)
+        
+@change_router.callback_query(Change.category)
+async def edit_profile_change_category_final(callback_query: CallbackQuery, state: FSMContext):
+    try:
+        chat_id = callback_query.message.chat.id
+        genre = callback_query.data
+        selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
+        if genre == "confirm" and selected_genres:
+            chat_id = callback_query.message.chat.id
+            supabase.table("UserData").update({"genre_work": selected_genres}).eq("chat_id", chat_id).execute()
+            await bot.send_message(chat_id, CHANGE_CATRGORY_SUCCESS +  "\n" +CATEGORIES + ", ".join(selected_genres), reply_markup=profile_edit_keyboard())
+            await state.set_state(Change.profile_change)
+        elif genre in genres_of_work:
+            genres_of_work[genre] = not genres_of_work[genre]
+            await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
+        else:
+            await bot.send_message(chat_id, GENRE_OF_WORK_VALIDATION)
+    except Exception as e:
+        print("Error in handle_genre_of_work_start:", e)
+
+@change_router.message(F.text == edit_profile_buttons["button7"], Change.profile_change)
+async def edit_profile_change_media(message: Message, state: FSMContext):
+    try: 
+        chat_id = message.chat.id
+        await bot.send_message(chat_id, CHANGE_MEDIA, reply_markup=back_keyboard())
+        await state.set_state(Change.survey_media)
+    except Exception as e:
+        print("Error in edit_profile_change_media:", e)
+
+@change_router.message(Change.survey_media)
+async def edit_profile_change_media_final(message: Message, state: FSMContext, album:list = None):
+    chat_id = message.chat.id
+    if album is None:
+        content_type = message.content_type
+        try:
+            match content_type:
+                case 'text':
+                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
+                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
+                    supabase.table("Surveys").insert({
+                        "chat_id": chat_id,
+                        "text": message.text
+                    }).execute()
+                    await bot.send_message(chat_id, MEDIA_SUCCESS,reply_markup=profile_edit_keyboard())
+                    await state.set_state(Change.profile_change)
+                case 'photo':
+                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
+                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
+                    supabase.table("Surveys").insert({
+                        "chat_id": chat_id,
+                        "photo_id": message.photo[-1].file_id,  # Сохраняем ID изображения
+                        "text": message.caption  # Сохраняем caption как текст
+                    }).execute()
+                    await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
+                    await state.set_state(Change.profile_change)
+                case 'video':
+                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
+                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
+                    supabase.table("Surveys").insert({
+                        "chat_id": chat_id,
+                        "video_id": message.video.file_id,  # Сохраняем ID видео
+                        "text": message.caption  # Сохраняем caption как текст
+                    }).execute()
+                    await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
+                    await state.set_state(Change.profile_change)
+                case 'document':
+                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
+                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
+                    supabase.table("Surveys").insert({
+                        "chat_id": chat_id,
+                        "document_id": message.document.file_id,  # Сохраняем ID документа
+                        "text": message.caption  # Сохраняем caption как текст
+                    }).execute()
+                    await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
+                    await state.set_state(Change.profile_change)
+                case _:
+                    await state.set_state(Change.survey_media)
+                    await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=back_keyboard())
+        except Exception as e:
+            print("Error in handle_media:", e)
+            await state.set_state(Change.survey_media)
+            await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=back_keyboard())
+    else:
+        try:
+            if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
+                supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
+            media_ids = [content.photo[-1].file_id if content.photo else content.video.file_id for content in album]
+            caption = album[0].caption
+            supabase.table("Surveys").insert({
+                "chat_id": chat_id,
+                "media_ids": media_ids,  # Сохраняем массив ID изображений или видео
+                "text": caption  # Сохраняем caption как текст
+            }).execute()
+            await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
+            await state.set_state(Change.profile_change)
+        except Exception as e:
+            print("Error in handle_mediagroup:", e)
+            await state.set_state(Change.survey_media)
+            await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=back_keyboard())
+
 
 
 @change_router.message(F.text == edit_profile_buttons["button8"], Change.profile_change)

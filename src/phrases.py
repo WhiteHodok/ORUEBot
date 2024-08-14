@@ -43,5 +43,6 @@ CHANGE_PHONE_SUCCESS = "Ваш номер телефона успешно изм
 CHANGE_EMAIL_SUCCESS = "Ваш почтовый адрес успешно изменен"
 CHANGE_COMPANY_SUCCESS = "Ваша компания успешно изменена"
 CHANGE_GUILD_SUCCESS = "Ваша гильдия успешно изменена"
-
-
+CHANGE_CATRGORY = "Вы попали в меню редактирования категорий"
+CHANGE_CATRGORY_SUCCESS = "Категории успешно изменены"
+CHANGE_MEDIA = "Пожалуйста, отправьте новую визитку"
