@@ -124,10 +124,12 @@ def registration_edit_keyboard():
     kb_builder.row(InlineKeyboardButton(text="Изменить визитку", callback_data="edit_media_group"))
     return kb_builder.as_markup()
 
+
 profile_keyboard_buttons = {
     "button1": "📒Изменить анкету",
     "button2": "🔙Назад",
 }
+
 
 def profile_keyboard():
     profile_keyboard = ReplyKeyboardBuilder()
@@ -136,6 +138,7 @@ def profile_keyboard():
     profile_keyboard.row(button1)
     profile_keyboard.row(button2)
     return profile_keyboard.as_markup(resize_keyboard=True)
+
 
 edit_profile_buttons = {
     "button1": "📒Изменить ФИО",
@@ -146,7 +149,8 @@ edit_profile_buttons = {
     "button6": "📒Изменить Email",
     "button7": "📒Изменить Визитку",
     "button8": "🔙Назад",
-    }
+}
+
 
 def profile_edit_keyboard():
     kb_builder = ReplyKeyboardBuilder()
@@ -161,14 +165,28 @@ def profile_edit_keyboard():
     kb_builder.row(button1, button2)
     kb_builder.row(button3, button4)
     kb_builder.row(button5, button6)
-    kb_builder.row(button7,button8)
+    kb_builder.row(button7, button8)
     return kb_builder.as_markup()
+
 
 back_button = {
     "button1": "🔙Назад"}
+
 
 def back_keyboard():
     kb_builder = ReplyKeyboardBuilder()
     kb_builder.row(KeyboardButton(text=back_button['button1']))
     return kb_builder.as_markup(resize_keyboard=True)
 
+
+guild_edit_profile = {
+    "guild1": "Ⅰ", "guild2": "Ⅱ", "guild3": "Ⅲ", "back1": "🔙Назад"
+}
+
+
+def guild_edit_keyboard():
+    kb_builder = ReplyKeyboardBuilder()
+    kb_builder.row(KeyboardButton(text=guild_edit_profile['guild1']), KeyboardButton(text=guild_edit_profile['guild2']),
+                   KeyboardButton(text=guild_edit_profile['guild3']))
+    kb_builder.row(KeyboardButton(text=guild_edit_profile['back1']))
+    return kb_builder.as_markup(resize_keyboard=True)

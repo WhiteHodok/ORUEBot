@@ -27,12 +27,15 @@ def validate_fio(fio: str) -> bool:
     # If all checks pass, the string is a valid FIO.
     return True
 
+
 def validate_phone_number(phone_number: str) -> bool:
     pattern = r"^7\d{10}$"
     if re.match(pattern, phone_number):
         return True
     else:
         return False
+
+
 def validate_email(email: str) -> bool:
     pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
     if re.match(pattern, email):

@@ -135,6 +135,7 @@ async def show_survey_example(message: Message, state: FSMContext):
     # Send the survey example to the user's chat
     await bot.send_message(chat_id, SURVEY_EXAMPLE)
 
+
 @user_router.message(F.text == user_keyboard_button['button2'], User.main)
 async def start_survey_registration(message: Message, state: FSMContext):
     """
@@ -502,6 +503,7 @@ async def handle_email_address(message: Message, state: FSMContext):
         print("Error in handle_email_address:", e)
         await state.set_state(User.registration_handle_email_start)
 
+
 @user_router.callback_query(User.registration_handle_email_start, F.data == 'skip')
 async def skip_email_address(call: CallbackQuery, state: FSMContext):
     try:
@@ -534,6 +536,7 @@ async def skip_email_address(call: CallbackQuery, state: FSMContext):
         print("Error in skip_email_address:", e)
         await state.set_state(User.registration_handle_email_start)
 
+
 @user_router.message(F.text == registered_keyboard_buttons["button1"], User.registration_end)
 async def show_my_survey(message: Message, state: FSMContext):
     chat_id = message.chat.id
@@ -551,22 +554,28 @@ async def show_my_survey(message: Message, state: FSMContext):
         "chat_id", chat_id).execute()
     data = response.data[0]
     if data.get("photo_id"):
-        await bot.send_photo(chat_id, photo=data["photo_id"], caption=f"Текст вашей визитки:\n" + data.get("text", "") + f"\n" + message_text)
+        await bot.send_photo(chat_id, photo=data["photo_id"],
+                             caption=f"Текст вашей визитки:\n" + data.get("text", "") + f"\n" + message_text)
     elif data.get("video_id"):
-        await bot.send_video(chat_id, video=data["video_id"], caption=f"Текст вашей визитки:\n" + data.get("text", "") + f" \n" + message_text)
+        await bot.send_video(chat_id, video=data["video_id"],
+                             caption=f"Текст вашей визитки:\n" + data.get("text", "") + f" \n" + message_text)
     elif data.get("document_id"):
-        await bot.send_document(chat_id, document=data["document_id"], caption=f"Текст вашей визитки:\n" + data.get("text", "") + f" \n" + message_text)
+        await bot.send_document(chat_id, document=data["document_id"],
+                                caption=f"Текст вашей визитки:\n" + data.get("text", "") + f" \n" + message_text)
     elif data.get("media_ids"):
         media_ids = json.loads(data["media_ids"])
         media_group = []
-        first_media = InputMediaPhoto(media=media_ids[0], caption= "Текст вашей визитки:" + "\n" + data.get("text", "")  +"\n" + message_text)
+        first_media = InputMediaPhoto(media=media_ids[0], caption="Текст вашей визитки:" + "\n" + data.get("text",
+                                                                                                           "") + "\n" + message_text)
         media_group.append(first_media)
         for media_id in media_ids[1:]:
             media_group.append(InputMediaPhoto(media=media_id))
         await bot.send_media_group(chat_id, media=media_group)
     elif data.get("text"):
-        await bot.send_message(chat_id, f"\n" +"Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
+        await bot.send_message(chat_id,
+                               f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
     await state.set_state(User.profile)
+
 
 @user_router.message(F.text == profile_keyboard_buttons["button2"], User.profile)
 async def back_to_menu_from_profile(message: Message, state: FSMContext):
