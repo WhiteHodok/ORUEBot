@@ -8,8 +8,8 @@ from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, MessageEn
 from config import bot
 from src.keyboards.user_keyboard import (
     genre_of_work_keyboard,
+    profile_edit_keyboard,
     profile_keyboard,
-    registration_edit_keyboard,
     skip_keyboard,
     user_keyboard_button,
     user_keyboard,
@@ -23,6 +23,7 @@ from src.keyboards.user_keyboard import (
 from src.phrases import (
     BACK_TO_MENU,
     COMPANY_NAME,
+    EDIT_PROFILE,
     EMAIL_ADDRESS,
     EMAIL_SKIP,
     EMAIL_SUCCESS,
@@ -554,28 +555,49 @@ async def show_my_survey(message: Message, state: FSMContext):
         "chat_id", chat_id).execute()
     data = response.data[0]
     if data.get("photo_id"):
-        await bot.send_photo(chat_id, photo=data["photo_id"],
-                             caption=f"Текст вашей визитки:\n" + data.get("text", "") + f"\n" + message_text)
+        await bot.send_photo(
+            chat_id,
+            photo=data["photo_id"],
+            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+        )
+        await state.set_state(User.profile)
     elif data.get("video_id"):
-        await bot.send_video(chat_id, video=data["video_id"],
-                             caption=f"Текст вашей визитки:\n" + data.get("text", "") + f" \n" + message_text)
+        await bot.send_video(
+            chat_id,
+            video=data["video_id"],
+            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+        )
+        await state.set_state(User.profile)
     elif data.get("document_id"):
-        await bot.send_document(chat_id, document=data["document_id"],
-                                caption=f"Текст вашей визитки:\n" + data.get("text", "") + f" \n" + message_text)
+        await bot.send_document(
+            chat_id,
+            document=data["document_id"],
+            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+        )
+        await state.set_state(User.profile)
     elif data.get("media_ids"):
         media_ids = json.loads(data["media_ids"])
         media_group = []
-        first_media = InputMediaPhoto(media=media_ids[0], caption="Текст вашей визитки:" + "\n" + data.get("text",
-                                                                                                           "") + "\n" + message_text)
+        # Добавляем первый элемент с подписью, если текст есть
+        first_media = InputMediaPhoto(
+            media=media_ids[0],
+            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+        )
+        await state.set_state(User.profile)
         media_group.append(first_media)
         for media_id in media_ids[1:]:
             media_group.append(InputMediaPhoto(media=media_id))
         await bot.send_media_group(chat_id, media=media_group)
+        await state.set_state(User.profile)
     elif data.get("text"):
-        await bot.send_message(chat_id,
-                               f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
-    await state.set_state(User.profile)
+        await bot.send_message(chat_id, f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
+        await state.set_state(User.profile)
 
+
+@user_router.message(F.text == profile_keyboard_buttons["button1"], User.profile)
+async def edit_profile(message: Message, state: FSMContext):
+    await message.answer(EDIT_PROFILE, reply_markup=profile_edit_keyboard())
+    await state.set_state(Change.profile_change)
 
 @user_router.message(F.text == profile_keyboard_buttons["button2"], User.profile)
 async def back_to_menu_from_profile(message: Message, state: FSMContext):

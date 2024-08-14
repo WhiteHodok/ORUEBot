@@ -113,17 +113,6 @@ def skip_keyboard():
     return kb_builder.as_markup()
 
 
-def registration_edit_keyboard():
-    kb_builder = InlineKeyboardBuilder()
-    kb_builder.row(InlineKeyboardButton(text="Редактировать ФИО", callback_data="edit_fio"))
-    kb_builder.row(InlineKeyboardButton(text="Редактировать Гильдию", callback_data="edit_guild"))
-    kb_builder.row(InlineKeyboardButton(text="Редактировать Компанию", callback_data="edit_company"))
-    kb_builder.row(InlineKeyboardButton(text="Редактировать Категории", callback_data="edit_genre_of_work"))
-    kb_builder.row(InlineKeyboardButton(text="Редактировать Телефон", callback_data="edit_phone_number"))
-    kb_builder.row(InlineKeyboardButton(text="Редактировать Email", callback_data="edit_email_address"))
-    kb_builder.row(InlineKeyboardButton(text="Изменить визитку", callback_data="edit_media_group"))
-    return kb_builder.as_markup()
-
 
 profile_keyboard_buttons = {
     "button1": "📒Изменить анкету",
