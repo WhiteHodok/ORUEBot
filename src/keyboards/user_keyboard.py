@@ -179,3 +179,8 @@ def guild_edit_keyboard():
                    KeyboardButton(text=guild_edit_profile['guild3']))
     kb_builder.row(KeyboardButton(text=guild_edit_profile['back1']))
     return kb_builder.as_markup(resize_keyboard=True)
+
+
+def reset_genres_of_work():
+    for genre in genres_of_work:
+        genres_of_work[genre] = False

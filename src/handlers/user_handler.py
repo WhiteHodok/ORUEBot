@@ -11,6 +11,7 @@ from src.keyboards.user_keyboard import (
     genre_of_work_keyboard,
     profile_edit_keyboard,
     profile_keyboard,
+    reset_genres_of_work,
     skip_keyboard,
     user_keyboard_button,
     user_keyboard,
@@ -626,6 +627,7 @@ async def search_button_handler(message: Message, state: FSMContext):
 @user_router.message(F.text == back_button['button1'], User.search)
 async def edit_profile_back(message: Message, state: FSMContext):
     await message.answer(BACK_TO_MENU,reply_markup=registered_keyboard())  # Здесь добавлять стейты для возврата назад
+    reset_genres_of_work()
     await state.set_state(User.registration_end)
 
 
@@ -675,6 +677,7 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                         survey_response = supabase.table("Surveys").select("text, photo_id, video_id, document_id, media_ids").eq("chat_id", user['chat_id']).execute()
                         survey_data = survey_response.data[0]
                         if survey_data.get("photo_id"):
+                            reset_genres_of_work()
                             await bot.send_photo(
                                 chat_id=chat_id,
                                 photo=survey_data["photo_id"],
@@ -682,6 +685,7 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                                 parse_mode="Markdown"
                             ) 
                         elif survey_data.get("video_id"):
+                            reset_genres_of_work()
                             await bot.send_video(
                                 chat_id=chat_id,
                                 video=survey_data["video_id"],
@@ -689,6 +693,7 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                                 parse_mode="Markdown"
                             )
                         elif survey_data.get("document_id"):
+                            reset_genres_of_work()
                             await bot.send_document(
                                 chat_id=chat_id,
                                 document=survey_data["document_id"],
@@ -696,6 +701,7 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                                 parse_mode="Markdown"
                             )
                         elif survey_data.get("media_ids"):
+                            reset_genres_of_work()
                             media_ids = json.loads(survey_data["media_ids"])
                             media_group = []
                             # Добавляем первый элемент с подписью, если текст есть
@@ -710,6 +716,7 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                                 media_group.append(InputMediaPhoto(media=media_id))
                             await bot.send_media_group(chat_id=chat_id, media=media_group)
                         elif survey_data.get("text"):
+                            reset_genres_of_work()
                             await bot.send_message(
                                 chat_id=user['chat_id'],
                                 text=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}",
