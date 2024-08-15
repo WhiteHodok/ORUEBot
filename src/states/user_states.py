@@ -20,4 +20,5 @@ class User(StatesGroup):
     registration_handle_email_start = State()
     registration_end = State()
     profile = State()
-
+    search = State()
+    search_active = State()
