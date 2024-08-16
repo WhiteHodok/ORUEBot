@@ -646,31 +646,34 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
             response = supabase.table("UserData").select("fio, guild, company, genre_work, phone, mail, chat_id").execute()
             users = response.data
 
-            if users:  # Проверяем, что список пользователей не пустой
+            if users:
                 def genre_match_count(user):
-                    # Парсинг строки JSON из поля genre_work
                     try:
                         user_genres = json.loads(user['genre_work'].replace("'", '"'))
                     except json.JSONDecodeError:
                         user_genres = []
 
-                    # Подсчет совпадающих жанров
-                    return len(set(selected_genres) & set(user_genres))
-                # Фильтруем пользователей, у которых есть хотя бы одно совпадение в жанрах
-                filtered_users = [user for user in users if genre_match_count(user) > 0]
-                # Сортируем пользователей по гильдиям и количеству совпадений жанров
+                    match_count = len(set(selected_genres) & set(user_genres))
+                    print(f"{user['fio']}: {match_count} matches with {user_genres}")
+                    return match_count
+
+                filtered_users = [user for user in users if genre_match_count(user) > 0 and user['chat_id'] != chat_id] 
+
                 sorted_users = sorted(
                     filtered_users,
                     key=lambda user: (
-                        user['guild'],  # Гильдия (I -> II -> III)
-                        -genre_match_count(user)  # Количество совпадений жанров - это по убыванию
+                        user['guild'], 
+                        -genre_match_count(user)
                     )
                 )
+
                 if sorted_users:
                     await state.update_data(sorted_users=sorted_users, current_index=0)
-                    await send_profile(bot, chat_id, sorted_users[0], sorted_users[0])
+                    await send_profile(bot, chat_id, sorted_users[0])
                     await bot.send_message(chat_id, "Используйте кнопки для навигации.", reply_markup=navigation_keyboard())
                     await state.set_state(User.search_active)
+                else:
+                    await bot.send_message(chat_id, "Нет пользователей, соответствующих выбранным критериям.")
             else:
                 await bot.send_message(chat_id, "Нет пользователей, соответствующих выбранным критериям.")
         elif genre in genres_of_work:
@@ -691,15 +694,18 @@ async def navigate_profiles(message: Message, state: FSMContext):
         await message.answer("Нет доступных анкет.")
         return
     
-    if message.text == "⬅️Влево" and current_index > 0:
-        current_index -= 1
-    elif message.text == "➡️Вправо" and current_index < len(sorted_users) - 1:
-        current_index += 1
-    elif message.text == "🔙Назад":
-        await state.set_state(User.registration_end())
+    if message.text == "⬅️Влево":
+        current_index = (current_index - 1) % len(sorted_users)
+    elif message.text == "➡️Вправо":
+        current_index = (current_index + 1) % len(sorted_users)
+    else: 
+        await state.set_state(User.registration_end)
+        reset_genres_of_work()
         await message.answer("Вы вернулись назад.", reply_markup=registered_keyboard())
         return
     
     await state.update_data(current_index=current_index)
-    await send_profile(bot, message.chat.id, sorted_users[current_index], sorted_users[current_index])
-    await message.answer("Используйте кнопки для навигации.", reply_markup=navigation_keyboard())
+    await send_profile(bot, message.chat.id, sorted_users[current_index])
+
+
+#чтоб своя не выводилась  фикс багов от Влада
