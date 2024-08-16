@@ -184,3 +184,18 @@ def guild_edit_keyboard():
 def reset_genres_of_work():
     for genre in genres_of_work:
         genres_of_work[genre] = False
+
+navigation_keyboard_buttons = {
+    "button1": "⬅️Влево",
+    "button2": "🔙Назад",
+    "button3": "➡️Вправо"
+}
+
+def navigation_keyboard():
+    keyboard = ReplyKeyboardBuilder()
+    keyboard.row(
+        KeyboardButton(text=navigation_keyboard_buttons['button1']),
+        KeyboardButton(text=navigation_keyboard_buttons['button2']),
+        KeyboardButton(text=navigation_keyboard_buttons['button3'])
+    )
+    return keyboard.as_markup(resize_keyboard=True)

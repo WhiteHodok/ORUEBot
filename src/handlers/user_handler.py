@@ -6,9 +6,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, MessageEntity, UNSET_PARSE_MODE, InputMedia, \
     InputMediaPhoto, InputMediaAudio, InputMediaVideo, InputMediaDocument
 from config import bot
+
+from src.func import send_profile
 from src.keyboards.user_keyboard import (
     back_keyboard,
     genre_of_work_keyboard,
+    navigation_keyboard,
     profile_edit_keyboard,
     profile_keyboard,
     reset_genres_of_work,
@@ -22,6 +25,7 @@ from src.keyboards.user_keyboard import (
     registered_keyboard_buttons,
     profile_keyboard_buttons,
     back_button,
+    navigation_keyboard_buttons
 )
 from src.phrases import (
     BACK_TO_MENU,
@@ -637,9 +641,11 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
         chat_id = callback_query.message.chat.id
         genre = callback_query.data
         selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
+
         if genre == "confirm" and selected_genres:
             response = supabase.table("UserData").select("fio, guild, company, genre_work, phone, mail, chat_id").execute()
             users = response.data
+
             if users:  # Проверяем, что список пользователей не пустой
                 def genre_match_count(user):
                     # Парсинг строки JSON из поля genre_work
@@ -660,70 +666,13 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                         -genre_match_count(user)  # Количество совпадений жанров - это по убыванию
                     )
                 )
-                await bot.send_message(chat_id, SEARCH_RESULTS, reply_markup=registered_keyboard())
-                await state.set_state(User.registration_end)
-                for user in sorted_users:
-                    if user['chat_id'] == chat_id:
-                        continue
-                    else:
-                        message_text = (
-                            f"**ФИО👨🏻‍💼:** {user['fio']}\n"
-                            f"**Гильдия⚜️:** {user['guild']}\n"
-                            f"**Компания🏛️:** {user['company']}\n"
-                            f"**Категории🔖:** {user['genre_work']}\n"
-                            f"**Номер телефона📱:** {user['phone']}\n"
-                            f"**Email📧:** {user['mail']}"
-                        )
-                        survey_response = supabase.table("Surveys").select("text, photo_id, video_id, document_id, media_ids").eq("chat_id", user['chat_id']).execute()
-                        survey_data = survey_response.data[0]
-                        if survey_data.get("photo_id"):
-                            reset_genres_of_work()
-                            await bot.send_photo(
-                                chat_id=chat_id,
-                                photo=survey_data["photo_id"],
-                                caption=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}" if survey_data.get("text") else message_text,
-                                parse_mode="Markdown"
-                            ) 
-                        elif survey_data.get("video_id"):
-                            reset_genres_of_work()
-                            await bot.send_video(
-                                chat_id=chat_id,
-                                video=survey_data["video_id"],
-                                caption=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}" if survey_data.get("text") else message_text,
-                                parse_mode="Markdown"
-                            )
-                        elif survey_data.get("document_id"):
-                            reset_genres_of_work()
-                            await bot.send_document(
-                                chat_id=chat_id,
-                                document=survey_data["document_id"],
-                                caption=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}" if survey_data.get("text") else message_text,
-                                parse_mode="Markdown"
-                            )
-                        elif survey_data.get("media_ids"):
-                            reset_genres_of_work()
-                            media_ids = json.loads(survey_data["media_ids"])
-                            media_group = []
-                            # Добавляем первый элемент с подписью, если текст есть
-                            first_media = InputMediaPhoto(
-                                media=media_ids[0],
-                                caption=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}" if survey_data.get("text") else message_text,
-                                parse_mode="Markdown"
-                            )
-                            media_group.append(first_media)
-                            # Добавляем остальные элементы без подписи
-                            for media_id in media_ids[1:]:
-                                media_group.append(InputMediaPhoto(media=media_id))
-                            await bot.send_media_group(chat_id=chat_id, media=media_group)
-                        elif survey_data.get("text"):
-                            reset_genres_of_work()
-                            await bot.send_message(
-                                chat_id=user['chat_id'],
-                                text=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}",
-                                parse_mode="Markdown",
-                                reply_markup=registered_keyboard()
-                            )
-                            await state.set_state(User.registration_end)
+                if sorted_users:
+                    await state.update_data(sorted_users=sorted_users, current_index=0)
+                    await send_profile(bot, chat_id, sorted_users[0], sorted_users[0])
+                    await bot.send_message(chat_id, "Используйте кнопки для навигации.", reply_markup=navigation_keyboard())
+                    await state.set_state(User.search_active)
+            else:
+                await bot.send_message(chat_id, "Нет пользователей, соответствующих выбранным критериям.")
         elif genre in genres_of_work:
             genres_of_work[genre] = not genres_of_work[genre]
             await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
@@ -732,3 +681,25 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
     except Exception as e:
         print("Error in search_handler:", e)
 
+@user_router.message(User.search_active)
+async def navigate_profiles(message: Message, state: FSMContext):
+    data = await state.get_data()
+    sorted_users = data.get('sorted_users', [])
+    current_index = data.get('current_index', 0)
+
+    if not sorted_users:
+        await message.answer("Нет доступных анкет.")
+        return
+    
+    if message.text == "⬅️Влево" and current_index > 0:
+        current_index -= 1
+    elif message.text == "➡️Вправо" and current_index < len(sorted_users) - 1:
+        current_index += 1
+    elif message.text == "🔙Назад":
+        await state.set_state(User.registration_end())
+        await message.answer("Вы вернулись назад.", reply_markup=registered_keyboard())
+        return
+    
+    await state.update_data(current_index=current_index)
+    await send_profile(bot, message.chat.id, sorted_users[current_index], sorted_users[current_index])
+    await message.answer("Используйте кнопки для навигации.", reply_markup=navigation_keyboard())
