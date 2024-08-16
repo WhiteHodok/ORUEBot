@@ -4,7 +4,7 @@ import supabase
 from config import bot
 from config import supabase
 
-async def send_profile(bot, chat_id, user, profile):
+async def send_profile(bot, chat_id, user):
     message_text = (
         f"**ФИО👨🏻‍💼:** {user['fio']}\n"
         f"**Гильдия⚜️:** {user['guild']}\n"
@@ -53,5 +53,11 @@ async def send_profile(bot, chat_id, user, profile):
         await bot.send_message(
             chat_id=chat_id,
             text=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}",
+            parse_mode="Markdown"
+        )
+    else:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=f"Визитка отсутствует\n\n{message_text}",
             parse_mode="Markdown"
         )
