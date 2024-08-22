@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton, WebAppInfo, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from config import supabase
-
+import hashlib
 user_keyboard_button = {"button1": "📜Пример анкеты", "button2": "📝Регистрация"}
 
 
@@ -49,32 +49,73 @@ def guild_keyboard():
 
 
 genres_of_work = {
-    "Java": False, "Scala": False, "Python": False,
-    "C#": False, "C/C++": False, "Golang": False,
-    "Ruby": False, "PHP": False, "Node.js": False,
-    "Solidity": False, "Web Frontend": False,
-    "Vue": False, "Angular": False, "React": False,
-    "iOS": False, "Android": False, "Flutter": False,
-    "React Native": False,
+    "Производство и продажа товаров народного потребления": False,
+    "Ремонт и обслуживание техники": False,
+    "Разработка и продвижение сайтов": False,
+    "Создание и продвижение мобильных приложений": False,
+    "Организация мероприятий": False,
+    "Консалтинг": False,
+    "Обучение и тренинги": False,
+    "Туризм": False,
+    "Ресторанный бизнес": False,
+    "Гостиничный бизнес": False,
+    "Транспорт": False,
+    "Строительство и ремонт": False,
+    "Дизайн интерьеров": False,
+    "Юридические услуги": False,
+    "Бухгалтерия": False,
+    "Медицинские услуги": False,
+    "Косметология": False,
+    "Фитнес": False,
+    "Недвижимость": False,
+    "Уход за пожилыми людьми": False,
+    "Организация праздников": False,
+    "Такси": False,
+    "Курьерская доставка": False,
+    "Уборка помещений": False,
+    "Озеленение и ландшафтный дизайн": False,
+    "Установка и обслуживание систем безопасности": False,
+    "Разработка и продвижение рекламных кампаний": False,
+    "Создание и продвижение видеоконтента": False,
+    "Обучение иностранным языкам": False,
+    "Подбор персонала": False,
+    "Аренда оборудования": False,
+    "Прокат автомобилей": False,
+    "Доставка продуктов питания": False,
+    "Производство и продажа продуктов питания": False,
+    "Пошив одежды": False,
+    "Изготовление мебели": False,
+    "Психологическая помощь": False,
+    "Проведение психологических тренингов": False,
+    "Предоставление услуг связи": False,
+    "Продажа и ремонт компьютерной техники": False,
+    "Разработка программного обеспечения": False,
+    "Настройка и обслуживание серверов": False,
+    "Создание и поддержка веб-сайтов": False,
+    "Перевод текстов": False,
+    "Написание статей и копирайтинг": False,
+    "Создание логотипов и фирменного стиля": False,
+    "Фото- и видеосъёмка": False,
+    "Организация выставок и ярмарок": False,
+    "Организация и продвижение": False
 }
 
+def hash_buttons(text):
+    return hashlib.md5(text.encode()).hexdigest()[:10]
+
+hash_to_genre = {hash_buttons(genre): genre for genre in genres_of_work.keys()}
 
 def genre_of_work_keyboard():
-    """
-    Generates an inline keyboard markup for selecting genres of work.
-
-    Returns:
-        InlineKeyboardMarkup: The generated inline keyboard markup.
-    """
     kb_builder = InlineKeyboardBuilder()
-    for language, selected in genres_of_work.items():
+    for genre, selected in genres_of_work.items():
+        callback_data = hash_buttons(genre)  # Используем хеш вместо длинной строки
         kb_builder.add(InlineKeyboardButton(
-            text=f"{'✅' if selected else ' '} {language}",
-            callback_data=language
+            text=f"{'✅' if selected else ' '} {genre}",
+            callback_data=callback_data
         ))
-    kb_builder.adjust(3)  # количество кнопок в строке
+    kb_builder.adjust(1)  # количество кнопок в строке
     kb_builder.row(InlineKeyboardButton(text="Подтвердить", callback_data="confirm"))
-    return kb_builder.as_markup()
+    return kb_builder.as_markup(resize_keyboard=True)
 
 
 registered_keyboard_buttons = {

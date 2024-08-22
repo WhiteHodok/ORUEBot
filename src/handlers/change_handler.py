@@ -8,9 +8,11 @@ from config import bot
 from src.keyboards.user_keyboard import (
     back_keyboard,
     genre_of_work_keyboard,
+    hash_buttons,
     profile_edit_keyboard,
     profile_keyboard,
     registered_keyboard,
+    reset_genres_of_work,
     skip_keyboard,
     user_keyboard_button,
     user_keyboard,
@@ -209,25 +211,40 @@ async def edit_profile_change_category(message: Message, state: FSMContext):
         await state.set_state(Change.category)
     except Exception as e:
         print("Error in edit_profile_change_category:", e)
-        
+
+hash_to_genre = {hash_buttons(genre): genre for genre in genres_of_work.keys()}
+       
 @change_router.callback_query(Change.category)
 async def edit_profile_change_category_final(callback_query: CallbackQuery, state: FSMContext):
     try:
         chat_id = callback_query.message.chat.id
-        genre = callback_query.data
-        selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
-        if genre == "confirm" and selected_genres:
-            chat_id = callback_query.message.chat.id
-            supabase.table("UserData").update({"genre_work": selected_genres}).eq("chat_id", chat_id).execute()
-            await bot.send_message(chat_id, CHANGE_CATRGORY_SUCCESS +  "\n" +CATEGORIES + ", ".join(selected_genres), reply_markup=profile_edit_keyboard())
-            await state.set_state(Change.profile_change)
-        elif genre in genres_of_work:
-            genres_of_work[genre] = not genres_of_work[genre]
-            await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
+        genre_hash = callback_query.data
+        
+        if genre_hash == "confirm":
+            # Подтверждение выбора: получаем оригинальные жанры по их состоянию
+            selected_genres = [genre for genre, selected in genres_of_work.items() if selected]
+            if selected_genres:
+                # Сохраняем оригинальные названия жанров в состояние
+                await state.update_data(genres_of_work=selected_genres)
+                await callback_query.message.answer("Вы выбрали следующие категории:\n" + "\n".join(selected_genres))
+                await bot.send_message(chat_id, CHANGE_CATRGORY_SUCCESS, reply_markup=profile_edit_keyboard())
+                supabase.table("UserData").update({"genre_work": selected_genres}).eq("chat_id", chat_id).execute()
+                reset_genres_of_work()
+                await state.set_state(Change.profile_change)
+            else:
+                await callback_query.answer("Выберите хотя бы одну категорию!", show_alert=True)
         else:
-            await bot.send_message(chat_id, GENRE_OF_WORK_VALIDATION)
+            # Находим оригинальный жанр по хешу
+            genre = hash_to_genre.get(genre_hash, None)
+            if genre:
+                # Переключаем выбранность жанра
+                genres_of_work[genre] = not genres_of_work[genre]
+                await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
+            else:
+                await callback_query.answer("Выберите категории", show_alert=True)
     except Exception as e:
         print("Error in handle_genre_of_work_start:", e)
+
 
 @change_router.message(F.text == edit_profile_buttons["button7"], Change.profile_change)
 async def edit_profile_change_media(message: Message, state: FSMContext):

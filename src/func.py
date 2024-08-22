@@ -5,11 +5,16 @@ from config import bot
 from config import supabase
 
 async def send_profile(bot, chat_id, user):
+    try:
+        genre_work = json.loads(user['genre_work'].replace("'", '"'))
+    except json.JSONDecodeError:
+        genre_work = []
+
     message_text = (
         f"**ФИО👨🏻‍💼:** {user['fio']}\n"
         f"**Гильдия⚜️:** {user['guild']}\n"
         f"**Компания🏛️:** {user['company']}\n"
-        f"**Категории🔖:** {user['genre_work']}\n"
+        f"**Категории🔖:** {', '.join(genre_work)}\n"  
         f"**Номер телефона📱:** {user['phone']}\n"
         f"**Email📧:** {user['mail']}"
     )

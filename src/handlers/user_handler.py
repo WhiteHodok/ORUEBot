@@ -11,6 +11,7 @@ from src.func import send_profile
 from src.keyboards.user_keyboard import (
     back_keyboard,
     genre_of_work_keyboard,
+    hash_buttons,
     navigation_keyboard,
     profile_edit_keyboard,
     profile_keyboard,
@@ -25,7 +26,7 @@ from src.keyboards.user_keyboard import (
     registered_keyboard_buttons,
     profile_keyboard_buttons,
     back_button,
-    navigation_keyboard_buttons
+    hash_to_genre
 )
 from src.phrases import (
     BACK_TO_MENU,
@@ -345,26 +346,34 @@ async def handle_guild_end(message: Message, state: FSMContext):
 
 @user_router.callback_query(User.registration_handle_genre_of_work)
 async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMContext):
-    """
-    Handle callback query for genre of work.
-    """
     try:
         chat_id = callback_query.message.chat.id
-        genre = callback_query.data
-        selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
-        if genre == "confirm" and selected_genres:
-            chat_id = callback_query.message.chat.id
-            await state.update_data(genres_of_work=selected_genres)
-            await bot.send_message(chat_id, CATEGORIES + ", ".join(selected_genres))
-            await bot.send_message(chat_id, MEDIA_CAPTION, reply_markup=skip_keyboard())
-            await state.set_state(User.registration_handle_photo_survey_start)
-        elif genre in genres_of_work:
-            genres_of_work[genre] = not genres_of_work[genre]
-            await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
+        genre_hash = callback_query.data
+        
+        if genre_hash == "confirm":
+            # Подтверждение выбора: получаем оригинальные жанры по их состоянию
+            selected_genres = [genre for genre, selected in genres_of_work.items() if selected]
+            if selected_genres:
+                # Сохраняем оригинальные названия жанров в состояние
+                await state.update_data(genres_of_work=selected_genres)
+                await callback_query.message.answer("Вы выбрали следующие категории:\n" + "\n".join(selected_genres))
+                await bot.send_message(chat_id, MEDIA_CAPTION, reply_markup=skip_keyboard())
+                reset_genres_of_work()
+                await state.set_state(User.registration_handle_photo_survey_start)
+            else:
+                await callback_query.answer("Выберите хотя бы одну категорию!", show_alert=True)
         else:
-            await bot.send_message(chat_id, GENRE_OF_WORK_VALIDATION)
+            # Находим оригинальный жанр по хешу
+            genre = hash_to_genre.get(genre_hash, None)
+            if genre:
+                # Переключаем выбранность жанра
+                genres_of_work[genre] = not genres_of_work[genre]
+                await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
+            else:
+                await callback_query.answer("Выберите категории", show_alert=True)
     except Exception as e:
         print("Error in handle_genre_of_work_start:", e)
+
 
 
 @user_router.callback_query(User.registration_handle_photo_survey_start, F.data == 'skip')
@@ -550,59 +559,64 @@ async def skip_email_address_handler(call: CallbackQuery, state: FSMContext):
 
 @user_router.message(F.text == registered_keyboard_buttons["button1"], User.registration_end)
 async def show_my_survey_handler(message: Message, state: FSMContext):
-    chat_id = message.chat.id
-    await bot.send_message(chat_id, PROFILE, reply_markup=profile_keyboard())
-    text_response = supabase.table("UserData").select("fio", "guild", "company", "genre_work", "phone", "mail").eq(
-        "chat_id", chat_id).execute().data
-    message_text = f"ФИО👨🏻‍💼: {text_response[0]['fio']}\n" \
-                   f"Гильдия⚜️: {text_response[0]['guild']}\n" \
-                   f"Ваша Компания🏛️: {text_response[0]['company']}\n" \
-                   f"Категории🔖: {text_response[0]['genre_work']}\n" \
-                   f"Номер телефона📱: {text_response[0]['phone']}\n" \
-                   f"Email📧: {text_response[0]['mail']}"
+    try:
+        chat_id = message.chat.id
+        await bot.send_message(chat_id, PROFILE, reply_markup=profile_keyboard())
 
-    response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq(
-        "chat_id", chat_id).execute()
-    data = response.data[0]
-    if data.get("photo_id"):
-        await bot.send_photo(
-            chat_id,
-            photo=data["photo_id"],
-            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
-        )
-        await state.set_state(User.profile)
-    elif data.get("video_id"):
-        await bot.send_video(
-            chat_id,
-            video=data["video_id"],
-            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
-        )
-        await state.set_state(User.profile)
-    elif data.get("document_id"):
-        await bot.send_document(
-            chat_id,
-            document=data["document_id"],
-            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
-        )
-        await state.set_state(User.profile)
-    elif data.get("media_ids"):
-        media_ids = json.loads(data["media_ids"])
-        media_group = []
-        # Добавляем первый элемент с подписью, если текст есть
-        first_media = InputMediaPhoto(
-            media=media_ids[0],
-            caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
-        )
-        await state.set_state(User.profile)
-        media_group.append(first_media)
-        for media_id in media_ids[1:]:
-            media_group.append(InputMediaPhoto(media=media_id))
-        await bot.send_media_group(chat_id, media=media_group)
-        await state.set_state(User.profile)
-    elif data.get("text"):
-        await bot.send_message(chat_id, f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
-        await state.set_state(User.profile)
+        text_response = supabase.table("UserData").select("fio", "guild", "company", "genre_work", "phone", "mail").eq(
+            "chat_id", chat_id).execute().data
+        genre_work = json.loads(text_response[0]['genre_work'])
+        message_text = f"ФИО👨🏻‍💼: {text_response[0]['fio']}\n" \
+               f"Гильдия⚜️: {text_response[0]['guild']}\n" \
+               f"Ваша Компания🏛️: {text_response[0]['company']}\n" \
+               f"Категории🔖: {', '.join(genre_work)}\n" \
+               f"Номер телефона📱: {text_response[0]['phone']}\n" \
+               f"Email📧: {text_response[0]['mail']}"
 
+
+        response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq(
+            "chat_id", chat_id).execute()
+        data = response.data[0]
+        if data.get("photo_id"):
+            await bot.send_photo(
+                chat_id,
+                photo=data["photo_id"],
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+            )
+            await state.set_state(User.profile)
+        elif data.get("video_id"):
+            await bot.send_video(
+                chat_id,
+                video=data["video_id"],
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+            )
+            await state.set_state(User.profile)
+        elif data.get("document_id"):
+            await bot.send_document(
+                chat_id,
+                document=data["document_id"],
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+            )
+            await state.set_state(User.profile)
+        elif data.get("media_ids"):
+            media_ids = json.loads(data["media_ids"])
+            media_group = []
+            # Добавляем первый элемент с подписью, если текст есть
+            first_media = InputMediaPhoto(
+                media=media_ids[0],
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+            )
+            await state.set_state(User.profile)
+            media_group.append(first_media)
+            for media_id in media_ids[1:]:
+                media_group.append(InputMediaPhoto(media=media_id))
+            await bot.send_media_group(chat_id, media=media_group)
+            await state.set_state(User.profile)
+        elif data.get("text"):
+            await bot.send_message(chat_id, f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
+            await state.set_state(User.profile)
+    except Exception as e:
+        print("Error in show_my_survey_handler:", e)
 
 @user_router.message(F.text == profile_keyboard_buttons["button1"], User.profile)
 async def edit_profile_handler(message: Message, state: FSMContext):
@@ -630,7 +644,7 @@ async def search_button_handler(message: Message, state: FSMContext):
 
 @user_router.message(F.text == back_button['button1'], User.search)
 async def edit_profile_back(message: Message, state: FSMContext):
-    await message.answer(BACK_TO_MENU,reply_markup=registered_keyboard())  # Здесь добавлять стейты для возврата назад
+    await message.answer(BACK_TO_MENU,reply_markup=registered_keyboard()) 
     reset_genres_of_work()
     await state.set_state(User.registration_end)
 
@@ -639,50 +653,54 @@ async def edit_profile_back(message: Message, state: FSMContext):
 async def search_handler(callback_query: CallbackQuery, state: FSMContext):
     try:
         chat_id = callback_query.message.chat.id
-        genre = callback_query.data
-        selected_genres = [lang for lang, selected in genres_of_work.items() if selected]
+        genre_hash = callback_query.data
+        selected_genres = [genre for genre, selected in genres_of_work.items() if selected]
 
-        if genre == "confirm" and selected_genres:
-            response = supabase.table("UserData").select("fio, guild, company, genre_work, phone, mail, chat_id").execute()
-            users = response.data
+        if genre_hash == "confirm":
+            if selected_genres:
+                response = supabase.table("UserData").select("fio, guild, company, genre_work, phone, mail, chat_id").execute()
+                users = response.data
 
-            if users:
-                def genre_match_count(user):
-                    try:
-                        user_genres = json.loads(user['genre_work'].replace("'", '"'))
-                    except json.JSONDecodeError:
-                        user_genres = []
+                if users:
+                    def genre_match_count(user):
+                        try:
+                            user_genres = json.loads(user['genre_work'].replace("'", '"'))
+                        except json.JSONDecodeError:
+                            user_genres = []
 
-                    match_count = len(set(selected_genres) & set(user_genres))
-                    print(f"{user['fio']}: {match_count} matches with {user_genres}")
-                    return match_count
+                        match_count = len(set(selected_genres) & set(user_genres))
+                        print(f"{user['fio']}: {match_count} matches with {user_genres}")
+                        return match_count
 
-                filtered_users = [user for user in users if genre_match_count(user) > 0 and user['chat_id'] != chat_id] 
+                    filtered_users = [user for user in users if genre_match_count(user) > 0 and user['chat_id'] != chat_id] 
 
-                sorted_users = sorted(
-                    filtered_users,
-                    key=lambda user: (
-                        user['guild'], 
-                        -genre_match_count(user)
+                    sorted_users = sorted(
+                        filtered_users,
+                        key=lambda user: (
+                            user['guild'], 
+                            -genre_match_count(user)
+                        )
                     )
-                )
 
-                if sorted_users:
-                    await state.update_data(sorted_users=sorted_users, current_index=0)
-                    await send_profile(bot, chat_id, sorted_users[0])
-                    await bot.send_message(chat_id, "Используйте кнопки для навигации.", reply_markup=navigation_keyboard())
-                    await state.set_state(User.search_active)
+                    if sorted_users:
+                        await state.update_data(sorted_users=sorted_users, current_index=0)
+                        await send_profile(bot, chat_id, sorted_users[0])
+                        await bot.send_message(chat_id, "Используйте кнопки для навигации.", reply_markup=navigation_keyboard())
+                        await state.set_state(User.search_active)
+                    else:
+                        await bot.send_message(chat_id, "Нет пользователей, соответствующих выбранным критериям.")
                 else:
                     await bot.send_message(chat_id, "Нет пользователей, соответствующих выбранным критериям.")
             else:
-                await bot.send_message(chat_id, "Нет пользователей, соответствующих выбранным критериям.")
-        elif genre in genres_of_work:
+                await callback_query.answer("Выберите хотя бы одну категорию!", show_alert=True)
+        elif genre_hash in hash_to_genre:
+            genre = hash_to_genre[genre_hash]
             genres_of_work[genre] = not genres_of_work[genre]
             await callback_query.message.edit_reply_markup(reply_markup=genre_of_work_keyboard())
         else:
-            await bot.send_message(chat_id, GENRE_OF_WORK_VALIDATION)
+            await callback_query.answer("Выберите корректную категорию", show_alert=True)
     except Exception as e:
-        print("Error in search_handler:", e)
+        print("Error in handling genre selection:", e)
 
 @user_router.message(User.search_active)
 async def navigate_profiles(message: Message, state: FSMContext):
