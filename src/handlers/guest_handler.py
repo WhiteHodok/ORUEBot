@@ -1,4 +1,7 @@
+import io
 import json
+import PIL
+import pyzbar.pyzbar
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
@@ -16,6 +19,7 @@ from src.phrases import (
 from src.states.guest_states import Guest
 from src.states.user_states import User
 from config import supabase
+from PIL import Image
 
 guest_router = Router()
 
@@ -67,6 +71,23 @@ async def guest_qr(data: WebAppData, state: FSMContext):
     chat_id = data.chat.id
     promocode = data.web_app_data.data
     await check_qr_code(chat_id, promocode, state)
+
+
+@guest_router.message(Guest.guest_main_room)
+async def guest_message_qr(message: Message, state: FSMContext):
+    chat_id = message.chat.id
+
+    photo_bytes = await bot.download(file=message.photo[-1].file_id, destination=io.BytesIO())
+    photo_bytes = photo_bytes.getvalue()
+
+    photo_image = PIL.Image.open(io.BytesIO(photo_bytes))
+
+    qr_code = pyzbar.pyzbar.decode(photo_image)
+
+    if qr_code:
+        qr_code = qr_code[0].data.decode()
+
+    await check_qr_code(chat_id, qr_code, state)
 
 
 async def check_qr_code(chat_id, promocode, state: FSMContext):
