@@ -24,7 +24,7 @@ from PIL import Image
 guest_router = Router()
 
 
-@guest_router.message(CommandStart(), StateFilter(None))
+@guest_router.message(CommandStart(), StateFilter(None, User.registration_end, User.main))
 async def start_command(message: Message, state: FSMContext):
     """
     Handles the start command for guests.
