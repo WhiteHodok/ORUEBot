@@ -61,6 +61,7 @@ from src.phrases import (
     CHANGE_COMPANY_SUCCESS,
     CHANGE_GUILD_SUCCESS
 )
+from src.repo.SurveyRepo import SurveyRepository
 from src.repo.UserDataRepo import UserDataRepository
 from src.states.user_states import User
 from src.states.change_states import Change
@@ -75,8 +76,10 @@ from src.handlers.user_handler import user_router
 from src.handlers.user_handler import to_input_media
 from config import supabase
 from src.repo import UserDataRepo
+from src.repo import SurveyRepo
 
 user_repo = UserDataRepository(supabase)
+survey_repo = SurveyRepository(supabase)
 
 change_router = Router()
 
@@ -267,42 +270,42 @@ async def edit_profile_change_media_final(message: Message, state: FSMContext, a
         try:
             match content_type:
                 case 'text':
-                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
-                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
-                    supabase.table("Surveys").insert({
-                        "chat_id": chat_id,
-                        "text": message.text
-                    }).execute()
+                    if survey_repo.get_user_order_data(chat_id):
+                        survey_repo.delete_user_data(chat_id)
+                    survey_repo.insert_field(chat_id, "text", message.text)
                     await bot.send_message(chat_id, MEDIA_SUCCESS,reply_markup=profile_edit_keyboard())
                     await state.set_state(Change.profile_change)
                 case 'photo':
-                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
-                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
-                    supabase.table("Surveys").insert({
+                    if survey_repo.get_user_order_data(chat_id):
+                        survey_repo.delete_user_data(chat_id)
+                    fields_to_insert = {
                         "chat_id": chat_id,
                         "photo_id": message.photo[-1].file_id,  # Сохраняем ID изображения
                         "text": message.caption  # Сохраняем caption как текст
-                    }).execute()
+                    }
+                    survey_repo.insert_fields(chat_id, fields_to_insert)
                     await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
                     await state.set_state(Change.profile_change)
                 case 'video':
-                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
-                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
-                    supabase.table("Surveys").insert({
+                    if survey_repo.get_user_order_data(chat_id):
+                        survey_repo.delete_user_data(chat_id)
+                    field_to_insert = {
                         "chat_id": chat_id,
                         "video_id": message.video.file_id,  # Сохраняем ID видео
                         "text": message.caption  # Сохраняем caption как текст
-                    }).execute()
+                    }
+                    survey_repo.insert_fields(chat_id, field_to_insert)
                     await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
                     await state.set_state(Change.profile_change)
                 case 'document':
-                    if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
-                        supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
-                    supabase.table("Surveys").insert({
+                    if survey_repo.get_user_order_data(chat_id):
+                        survey_repo.delete_user_data(chat_id)
+                    field_to_insert = {
                         "chat_id": chat_id,
                         "document_id": message.document.file_id,  # Сохраняем ID документа
                         "text": message.caption  # Сохраняем caption как текст
-                    }).execute()
+                    }
+                    survey_repo.insert_fields(chat_id, field_to_insert)
                     await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
                     await state.set_state(Change.profile_change)
                 case _:
@@ -314,15 +317,16 @@ async def edit_profile_change_media_final(message: Message, state: FSMContext, a
             await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=back_keyboard())
     else:
         try:
-            if supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute().data:
-                supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
+            if survey_repo.get_user_order_data(chat_id):
+                survey_repo.delete_user_data(chat_id)
             media_ids = [content.photo[-1].file_id if content.photo else content.video.file_id for content in album]
             caption = album[0].caption
-            supabase.table("Surveys").insert({
+            fields_to_insert = {
                 "chat_id": chat_id,
                 "media_ids": media_ids,  # Сохраняем массив ID изображений или видео
                 "text": caption  # Сохраняем caption как текст
-            }).execute()
+            }
+            survey_repo.insert_fields(chat_id, fields_to_insert)
             await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
             await state.set_state(Change.profile_change)
         except Exception as e:
