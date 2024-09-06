@@ -61,6 +61,7 @@ from src.phrases import (
     CHANGE_COMPANY_SUCCESS,
     CHANGE_GUILD_SUCCESS
 )
+from src.repo.UserDataRepo import UserDataRepository
 from src.states.user_states import User
 from src.states.change_states import Change
 from src.middlewares.user_verification_middleware import VerificationMiddleware
@@ -73,6 +74,9 @@ from src.handlers.user_validation import (
 from src.handlers.user_handler import user_router
 from src.handlers.user_handler import to_input_media
 from config import supabase
+from src.repo import UserDataRepo
+
+user_repo = UserDataRepository(supabase)
 
 change_router = Router()
 
@@ -104,7 +108,7 @@ async def edit_profile_waiting_fio(message: Message, state: FSMContext):
         chat_id = message.chat.id
         fio = message.text
         if validate_fio(fio):
-            supabase.table("UserData").update({"fio": fio}).eq("chat_id", chat_id).execute()
+            user_repo.update_field(chat_id, "fio", fio)
             await state.set_state(Change.profile_change)
             await message.answer(CHANGE_FIO_SUCCESS + " на " + fio, reply_markup=profile_edit_keyboard())
         else:
@@ -125,7 +129,7 @@ async def edit_profile_waiting_phone(message: Message, state: FSMContext):
         chat_id = message.chat.id
         phone = message.text
         if validate_phone_number(phone):
-            supabase.table("UserData").update({"phone": phone}).eq("chat_id", chat_id).execute()
+            user_repo.update_field(chat_id, "phone", phone)
             await state.set_state(Change.profile_change)
             await message.answer(CHANGE_PHONE_SUCCESS + " на " + phone, reply_markup=profile_edit_keyboard())
         else:
@@ -146,7 +150,7 @@ async def edit_profile_waiting_email(message: Message, state: FSMContext):
         chat_id = message.chat.id
         email = message.text
         if validate_email(email):
-            supabase.table("UserData").update({"mail": email}).eq("chat_id", chat_id).execute()
+            user_repo.update_field(chat_id, "email", email)
             await state.set_state(Change.profile_change)
             await message.answer(CHANGE_EMAIL_SUCCESS + " на " + email, reply_markup=profile_edit_keyboard())
         else:
@@ -165,7 +169,7 @@ async def edit_profile_change_company_name(message: Message, state: FSMContext):
 async def edit_profile_change_company_name(message: Message, state: FSMContext):
     chat_id = message.chat.id
     company_name = message.text
-    supabase.table("UserData").update({"company": company_name}).eq("chat_id", chat_id).execute()
+    user_repo.update_field(chat_id, "company", company_name)
     await state.set_state(Change.profile_change)
     await message.answer(CHANGE_COMPANY_SUCCESS + " на " + company_name, reply_markup=profile_edit_keyboard())
 
@@ -180,7 +184,7 @@ async def edit_profile_change_guild(message: Message, state: FSMContext):
 async def edit_profile_change_guild_parser_number1(message: Message, state: FSMContext):
     chat_id = message.chat.id
     guild = message.text
-    supabase.table("UserData").update({"guild": guild}).eq("chat_id", chat_id).execute()
+    user_repo.update_field(chat_id, "guild", guild)
     await state.set_state(Change.profile_change)
     await message.answer(CHANGE_GUILD_SUCCESS + " на " + guild, reply_markup=profile_edit_keyboard())
 
@@ -189,7 +193,7 @@ async def edit_profile_change_guild_parser_number1(message: Message, state: FSMC
 async def edit_profile_change_guild_parser_number2(message: Message, state: FSMContext):
     chat_id = message.chat.id
     guild = message.text
-    supabase.table("UserData").update({"guild": guild}).eq("chat_id", chat_id).execute()
+    user_repo.update_field(chat_id, "guild", guild)
     await state.set_state(Change.profile_change)
     await message.answer(CHANGE_GUILD_SUCCESS + " на " + guild, reply_markup=profile_edit_keyboard())
 
@@ -198,7 +202,7 @@ async def edit_profile_change_guild_parser_number2(message: Message, state: FSMC
 async def edit_profile_change_guild_parser_number3(message: Message, state: FSMContext):
     chat_id = message.chat.id
     guild = message.text
-    supabase.table("UserData").update({"guild": guild}).eq("chat_id", chat_id).execute()
+    user_repo.update_field(chat_id, "guild", guild)
     await state.set_state(Change.profile_change)
     await message.answer(CHANGE_GUILD_SUCCESS + " на " + guild, reply_markup=profile_edit_keyboard())
 
@@ -228,7 +232,7 @@ async def edit_profile_change_category_final(callback_query: CallbackQuery, stat
                 await state.update_data(genres_of_work=selected_genres)
                 await callback_query.message.answer("Вы выбрали следующие категории:\n" + "\n".join(selected_genres))
                 await bot.send_message(chat_id, CHANGE_CATRGORY_SUCCESS, reply_markup=profile_edit_keyboard())
-                supabase.table("UserData").update({"genre_work": selected_genres}).eq("chat_id", chat_id).execute()
+                user_repo.update_field(chat_id, "genre_work", selected_genres)
                 reset_genres_of_work()
                 await state.set_state(Change.profile_change)
             else:
