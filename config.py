@@ -5,28 +5,35 @@ from pydantic_settings import BaseSettings
 from supabase import Client, create_client
 
 
-class Secrets(BaseSettings):
-    token: str
-    #admin_id: int
-    supabase_url: str
-    supabase_key: str
-    #redis_url: str
-    #group_id: str
+class EnvSettings(BaseSettings):
+    """
+    Environment settings.
+    """
+
+    model_config: BaseSettings
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
-secrets = Secrets()
+class BotSettings(EnvSettings):
+    token: str
 
-# init supabase
-url: str = secrets.supabase_url
-key: str = secrets.supabase_key
+
+class SupabaseSettings(EnvSettings):
+    supabase_url: str
+    supabase_key: str
+
+
+bot_settings = BotSettings()
+supabase_settings = SupabaseSettings()
+
+url: str = supabase_settings.supabase_url
+key: str = supabase_settings.supabase_key
 supabase: Client = create_client(url, key)
 
-#group_id = secrets.group_id
-
 default = DefaultBotProperties(parse_mode='Markdown', protect_content=False)
-bot = Bot(token=secrets.token, default=default)
+bot = Bot(token=bot_settings.token, default=default)
 dp = Dispatcher()
