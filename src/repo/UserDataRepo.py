@@ -25,3 +25,7 @@ class UserDataRepository:
         self.supabase.table("UserData").delete().eq("chat_id", chat_id).execute()
         self.supabase.table("Surveys").delete().eq("chat_id", chat_id).execute()
 
+    def get_all_users(self) -> APIResponse[Any]:
+        """Получить список всех пользователей с нужными полями"""
+        return self.supabase.table("UserData").select("fio, guild, company, genre_work, phone, mail, chat_id").execute()
+

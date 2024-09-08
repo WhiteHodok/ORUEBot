@@ -7,6 +7,8 @@ from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, MessageEn
     InputMediaPhoto, InputMediaAudio, InputMediaVideo, InputMediaDocument
 from config import bot
 
+from src.repo.SurveyRepo import SurveyRepository
+from src.repo.UserDataRepo import UserDataRepository
 from src.func import send_profile
 from src.keyboards.user_keyboard import (
     back_keyboard,
@@ -75,6 +77,8 @@ user_router = Router()
 user_router.message.middleware(VerificationMiddleware())
 user_router.message.middleware(AlbumMiddleware())
 
+user_repo = UserDataRepository(supabase)
+survey_repo = SurveyRepository(supabase)
 
 def to_input_media(
         message: Message,
@@ -381,9 +385,8 @@ async def skip_survey_media(call: CallbackQuery, state: FSMContext):
     try:
         chat_id = call.message.chat.id
         await state.set_state(User.registration_handle_photo_survey_end)
-        supabase.table("Surveys").insert({
-            "chat_id": chat_id
-        }).execute()
+        user_repo.insert_field(chat_id, "chat_id", chat_id)
+        survey_repo.insert_field(chat_id, "chat_id", chat_id)
         await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
 
     except Exception as e:
@@ -398,37 +401,26 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
         try:
             match content_type:
                 case 'text':
-                    supabase.table("Surveys").insert({
-                        "chat_id": chat_id,
-                        "text": message.text
-                    }).execute()
+                    survey_repo.insert_field(chat_id, "text", message.text)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'photo':
-                    supabase.table("Surveys").insert({
-                        "chat_id": chat_id,
-                        "photo_id": message.photo[-1].file_id,  # Сохраняем ID изображения
-                        "text": message.caption  # Сохраняем caption как текст
-                    }).execute()
+                    
+                    survey_repo.insert_field(chat_id, "photo_id", message.photo[-1].file_id)
+                    survey_repo.update_field(chat_id, "text", message.caption)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'video':
-                    supabase.table("Surveys").insert({
-                        "chat_id": chat_id,
-                        "video_id": message.video.file_id,  # Сохраняем ID видео
-                        "text": message.caption  # Сохраняем caption как текст
-                    }).execute()
+                    survey_repo.insert_field(chat_id, "video_id", message.video.file_id)
+                    survey_repo.update_field(chat_id, "text", message.caption)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'document':
-                    supabase.table("Surveys").insert({
-                        "chat_id": chat_id,
-                        "document_id": message.document.file_id,  # Сохраняем ID документа
-                        "text": message.caption  # Сохраняем caption как текст
-                    }).execute()
+                    survey_repo.insert_field(chat_id, "document_id", message.document.file_id)
+                    survey_repo.update_field(chat_id, "text", message.caption)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
@@ -443,11 +435,8 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
         try:
             media_ids = [content.photo[-1].file_id if content.photo else content.video.file_id for content in album]
             caption = album[0].caption
-            supabase.table("Surveys").insert({
-                "chat_id": chat_id,
-                "media_ids": media_ids,  # Сохраняем массив ID изображений или видео
-                "text": caption  # Сохраняем caption как текст
-            }).execute()
+            survey_repo.insert_field(chat_id, "media_ids", media_ids)
+            survey_repo.update_field(chat_id, "text", caption)
             await bot.send_message(chat_id, MEDIA_SUCCESS)
             await state.set_state(User.registration_handle_photo_survey_end)
             await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
@@ -502,16 +491,13 @@ async def handle_email_address(message: Message, state: FSMContext):
             phone_number = data.get('phone_number')
             email_address = data.get('email_address')
             if fio and guild and company_name and genre_of_work and phone_number and email_address:
-                supabase.table("UserData").upsert({
-                    "chat_id": chat_id,
-                    "fio": fio,
-                    'guild': guild,
-                    'company': company_name,
-                    'genre_work': genre_of_work,
-                    'phone': phone_number,
-                    'mail': email_address,
-                    'clicker': True
-                }).execute()
+                user_repo.update_field(chat_id, "fio", fio)
+                user_repo.update_field(chat_id, "guild", guild)
+                user_repo.update_field(chat_id, "company", company_name)
+                user_repo.update_field(chat_id, "genre_work", genre_of_work)
+                user_repo.update_field(chat_id, "phone", phone_number)
+                user_repo.update_field(chat_id, "mail", email_address)
+                user_repo.update_field(chat_id, "clicker", True)
                 await state.set_state(User.registration_end)
                 await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
             else:
@@ -537,16 +523,13 @@ async def skip_email_address_handler(call: CallbackQuery, state: FSMContext):
         phone_number = data.get('phone_number')
         email_address = 'Не указан'
         if fio and guild and company_name and genre_of_work and phone_number and email_address:
-            supabase.table("UserData").upsert({
-                "chat_id": chat_id,
-                "fio": fio,
-                'guild': guild,
-                'company': company_name,
-                'genre_work': genre_of_work,
-                'phone': phone_number,
-                'mail': email_address,
-                'clicker': True
-            }).execute()
+            user_repo.update_field(chat_id, "fio", fio)
+            user_repo.update_field(chat_id, "guild", guild)
+            user_repo.update_field(chat_id, "company", company_name)
+            user_repo.update_field(chat_id, "genre_work", genre_of_work)
+            user_repo.update_field(chat_id, "phone", phone_number)
+            user_repo.update_field(chat_id, "mail", email_address)
+            user_repo.update_field(chat_id, "clicker", True)
             await state.set_state(User.registration_end)
             await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
         else:
@@ -563,20 +546,18 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
         chat_id = message.chat.id
         await bot.send_message(chat_id, PROFILE, reply_markup=profile_keyboard())
 
-        text_response = supabase.table("UserData").select("fio", "guild", "company", "genre_work", "phone", "mail").eq(
-            "chat_id", chat_id).execute().data
-        genre_work = json.loads(text_response[0]['genre_work'])
-        message_text = f"ФИО👨🏻‍💼: {text_response[0]['fio']}\n" \
-               f"Гильдия⚜️: {text_response[0]['guild']}\n" \
-               f"Ваша Компания🏛️: {text_response[0]['company']}\n" \
-               f"Категории🔖: {', '.join(genre_work)}\n" \
-               f"Номер телефона📱: {text_response[0]['phone']}\n" \
-               f"Email📧: {text_response[0]['mail']}"
+        text_response = user_repo.get_user_by_chat_id(chat_id)
+        user_data = text_response.data[0]
+        genre_work = json.loads(user_data['genre_work']) if user_data.get('genre_work') else []
+        message_text = f"ФИО👨🏻‍💼: {user_data['fio']}\n" \
+                   f"Гильдия⚜️: {user_data['guild']}\n" \
+                   f"Ваша Компания🏛️: {user_data['company']}\n" \
+                   f"Категории🔖: {', '.join(genre_work)}\n" \
+                   f"Номер телефона📱: {user_data['phone']}\n" \
+                   f"Email📧: {user_data['mail']}"
 
-
-        response = supabase.table("Surveys").select("text", "photo_id", "video_id", "document_id", "media_ids").eq(
-            "chat_id", chat_id).execute()
-        data = response.data[0]
+        response_media = survey_repo.get_user_order_data(chat_id)
+        data = response_media[0]
         if data.get("photo_id"):
             await bot.send_photo(
                 chat_id,
@@ -658,8 +639,9 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
 
         if genre_hash == "confirm":
             if selected_genres:
-                response = supabase.table("UserData").select("fio, guild, company, genre_work, phone, mail, chat_id").execute()
-                users = response.data
+                
+                response = user_repo.get_all_users()
+                users = response.data if response.data else []
 
                 if users:
                     def genre_match_count(user):
