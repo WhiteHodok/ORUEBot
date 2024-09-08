@@ -3,6 +3,11 @@ from aiogram.types import InputMediaPhoto
 import supabase
 from config import bot
 from config import supabase
+from src.repo.SurveyRepo import SurveyRepository
+from src.repo.UserDataRepo import UserDataRepository
+
+user_repo = UserDataRepository(supabase)
+survey_repo = SurveyRepository(supabase)
 
 async def send_profile(bot, chat_id, user):
     try:
@@ -18,8 +23,7 @@ async def send_profile(bot, chat_id, user):
         f"**Номер телефона📱:** {user['phone']}\n"
         f"**Email📧:** {user['mail']}"
     )
-    survey_response = supabase.table("Surveys").select("text, photo_id, video_id, document_id, media_ids").eq("chat_id", user['chat_id']).execute()
-    survey_data = survey_response.data[0]
+    survey_data = survey_repo.get_user_order_data(chat_id)[0]
 
     if survey_data.get("photo_id"):
         await bot.send_photo(

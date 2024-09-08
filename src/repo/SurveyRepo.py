@@ -29,7 +29,7 @@ class SurveyRepository:
 
     def get_user_order_data(self, chat_id: int):
         """Получить все данные пользователя по chat_id"""
-        response = self.supabase.table("Surveys").select("chat_id").eq("chat_id", chat_id).execute()
+        response = self.supabase.table("Surveys").select("*").eq("chat_id", chat_id).execute()
         return response.data
 
 
