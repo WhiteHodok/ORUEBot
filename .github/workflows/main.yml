@@ -1,0 +1,28 @@
+name: CD Pipeline
+
+on: 
+  pull_request:
+    types: [closed]
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+     
+    - name: pull changes to vds
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        password: ${{ secrets.VPS_PASSWD }}
+        port: ${{ secrets.VPS_PORT }}
+        key: ${{ secrets.VPS_SSHKEY }}
+        script: | 
+          cd ~/ORUEBot
+          systemctl stop ORUEBot.service
+          git pull 
+          systemctl start ORUEBot.service
