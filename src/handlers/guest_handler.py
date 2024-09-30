@@ -6,6 +6,8 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, WebAppData
+from pyasn1_modules.rfc2985 import contentType
+
 from config import bot
 from src.keyboards.user_keyboard import user_keyboard, registered_keyboard
 from src.keyboards.guest_keyboard import guest_user_keyboard
@@ -24,7 +26,7 @@ from PIL import Image
 guest_router = Router()
 
 
-@guest_router.message(CommandStart(), StateFilter(None, User.registration_end, User.main))
+@guest_router.message(CommandStart(), StateFilter(None, User.registration_end, User.main, Guest.guest_main_room))
 async def start_command(message: Message, state: FSMContext):
     """
     Handles the start command for guests.
@@ -40,15 +42,16 @@ async def start_command(message: Message, state: FSMContext):
     """
     chat_id = message.chat.id
 
-    if supabase.table("UserData").select("chat_id").eq("chat_id", chat_id).execute().data:
-        if supabase.table("UserData").select("clicker").eq("chat_id", chat_id).execute().data:
+    user_data = supabase.table("UserData").select("clicker").eq("chat_id", chat_id).execute().data
+
+    if user_data:
+        # Получаем значение 'clicker' из первого элемента
+        clicker_value = user_data[0]['clicker']
+
+        # Проверяем, не является ли значение None
+        if clicker_value is not None:
             await bot.send_message(chat_id, QUALIFIED_USER_TEXT, reply_markup=registered_keyboard())
             await state.set_state(User.registration_end)
-            return
-        else:
-            await bot.send_message(chat_id, QUALIFIED_USER_TEXT, reply_markup=user_keyboard())
-            await state.set_state(User.main)
-            return
 
     await state.set_state(Guest.guest_main_room)
     await bot.send_message(chat_id, CAPTION_QR_TEXT, reply_markup=guest_user_keyboard())
@@ -76,18 +79,22 @@ async def guest_qr(data: WebAppData, state: FSMContext):
 @guest_router.message(Guest.guest_main_room)
 async def guest_message_qr(message: Message, state: FSMContext):
     chat_id = message.chat.id
+    if message.content_type == 'photo':
+        photo_bytes = await bot.download(file=message.photo[-1].file_id, destination=io.BytesIO())
+        photo_bytes = photo_bytes.getvalue()
 
-    photo_bytes = await bot.download(file=message.photo[-1].file_id, destination=io.BytesIO())
-    photo_bytes = photo_bytes.getvalue()
+        photo_image = PIL.Image.open(io.BytesIO(photo_bytes))
 
-    photo_image = PIL.Image.open(io.BytesIO(photo_bytes))
+        qr_code = pyzbar.pyzbar.decode(photo_image)
 
-    qr_code = pyzbar.pyzbar.decode(photo_image)
+        if qr_code:
+            qr_code = qr_code[0].data.decode()
 
-    if qr_code:
-        qr_code = qr_code[0].data.decode()
+        await check_qr_code(chat_id, qr_code, state)
+    else:
+        await bot.send_message(chat_id, WRONG_QR_TEXT)
 
-    await check_qr_code(chat_id, qr_code, state)
+
 
 
 async def check_qr_code(chat_id, promocode, state: FSMContext):
