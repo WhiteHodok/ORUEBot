@@ -47,14 +47,20 @@ async def start_command(message: Message, state: FSMContext):
     if user_data:
         # Получаем значение 'clicker' из первого элемента
         clicker_value = user_data[0]['clicker']
+        print(clicker_value)
 
         # Проверяем, не является ли значение None
         if clicker_value is not None:
             await bot.send_message(chat_id, QUALIFIED_USER_TEXT, reply_markup=registered_keyboard())
             await state.set_state(User.registration_end)
+        elif clicker_value is None:
+            await bot.send_message(chat_id, QUALIFIED_USER_TEXT, reply_markup=user_keyboard())
+            await state.set_state(User.main)
 
-    await state.set_state(Guest.guest_main_room)
-    await bot.send_message(chat_id, CAPTION_QR_TEXT, reply_markup=guest_user_keyboard())
+    else:
+        await state.set_state(Guest.guest_main_room)
+        await bot.send_message(chat_id, CAPTION_QR_TEXT, reply_markup=guest_user_keyboard())
+
 
 
 @guest_router.message(F.content_type == 'web_app_data', Guest.guest_main_room)
