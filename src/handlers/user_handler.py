@@ -130,28 +130,6 @@ async def show_survey_example(message: Message, state: FSMContext):
     await bot.send_message(chat_id, SURVEY_EXAMPLE)
 
 
-@user_router.message(F.text == user_keyboard_button['button1'], User.main)
-async def show_survey_example(message: Message, state: FSMContext):
-    """
-    This function is an asynchronous handler that is triggered when a user
-    selects the 'button1' from the user keyboard. It sends a message with the
-    survey example to the user's chat.
-
-    Args:
-        message (Message): The message object containing information about the
-        button selection.
-        state (FSMContext): The finite state machine context.
-
-    Returns:
-        None
-    """
-    # Get the chat ID from the message
-    chat_id = message.chat.id
-
-    # Send the survey example to the user's chat
-    await bot.send_message(chat_id, SURVEY_EXAMPLE)
-
-
 @user_router.message(F.text == user_keyboard_button['button2'], User.main)
 async def start_survey_registration(message: Message, state: FSMContext):
     """
