@@ -313,7 +313,7 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
         if genre_hash == "confirm":
             # Подтверждение выбора: получаем оригинальные жанры по их состоянию
             selected_genres = [genre for genre, selected in genres_of_work.items() if selected]
-            if selected_genres:
+            if selected_genres and len(selected_genres) <= 10:
                 # Сохраняем оригинальные названия жанров в состояние
                 await state.update_data(genres_of_work=selected_genres)
                 await callback_query.message.answer("Вы выбрали следующие категории:\n" + "\n".join(selected_genres))
@@ -321,7 +321,7 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
                 reset_genres_of_work()
                 await state.set_state(User.registration_handle_photo_survey_start)
             else:
-                await callback_query.answer("Выберите хотя бы одну категорию!", show_alert=True)
+                await callback_query.answer("Количество категорий не должно превышать 10 и не может быть равно 0!", show_alert=True)
         else:
             # Находим оригинальный жанр по хешу
             genre = hash_to_genre.get(genre_hash, None)
