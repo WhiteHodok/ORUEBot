@@ -33,6 +33,7 @@ from src.keyboards.user_keyboard import (
 from src.phrases import (
     BACK_TO_MENU,
     COMPANY_NAME,
+    COMPANY_VALIDATION,
     EDIT_PROFILE,
     EMAIL_ADDRESS,
     EMAIL_SKIP,
@@ -68,7 +69,8 @@ from src.middlewares.album_middleware import *
 from src.handlers.user_validation import (
     validate_fio,
     validate_phone_number,
-    validate_email
+    validate_email,
+    validate_company_length
 )
 from config import supabase
 
@@ -79,35 +81,6 @@ user_router.message.middleware(AlbumMiddleware())
 
 user_repo = UserDataRepository(supabase)
 survey_repo = SurveyRepository(supabase)
-
-def to_input_media(
-        message: Message,
-        caption: Optional[str] = None,
-        parse_mode: Optional[str] = UNSET_PARSE_MODE,
-        caption_entities: Optional[List[MessageEntity]] = None,
-) -> InputMedia:
-    if message.content_type == "photo":
-        cls = InputMediaPhoto
-        media = message.photo[0].file_id
-    elif message.content_type == "video":
-        cls = InputMediaVideo
-        media = message.video.file_id
-    elif message.content_type == "audio":
-        cls = InputMediaAudio
-        media = message.audio.file_id
-    elif message.content_type == "document":
-        cls = InputMediaDocument
-        media = message.document.file_id
-    else:
-        raise ValueError(f"Unsupported media type {message.content_type}")
-    caption_message = caption or message.caption
-    return cls(
-        media=media,
-        caption=caption or message.caption,
-        parse_mode=parse_mode,
-        caption_entities=caption_entities or message.caption_entities,
-    )
-
 
 @user_router.message(F.text == user_keyboard_button['button1'], User.main)
 async def show_survey_example(message: Message, state: FSMContext):
@@ -312,15 +285,20 @@ async def handle_guild_end(message: Message, state: FSMContext):
     try:
         # Get the company name from the message
         company_name = message.text
+        if validate_company_length(company_name):
+            # Update the state with the company name
+            await state.update_data(company_name=company_name)
 
-        # Update the state with the company name
-        await state.update_data(company_name=company_name)
+            # Set the state to the genre of work
+            await state.set_state(User.registration_handle_genre_of_work)
 
-        # Set the state to the genre of work
-        await state.set_state(User.registration_handle_genre_of_work)
+            # Send a message to the user with the genre of work and the genre of work keyboard
+            await message.reply(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
+        else:
+            await message.reply(COMPANY_VALIDATION)
+            await state.set_state(User.registration_handle_guild_end)
 
-        # Send a message to the user with the genre of work and the genre of work keyboard
-        await message.reply(GENRE_OF_WORK, reply_markup=genre_of_work_keyboard())
+
     except Exception as e:
         # Print the error if any exception occurs
         print("Error in handle_guild_end:", e)
@@ -331,7 +309,7 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
     try:
         chat_id = callback_query.message.chat.id
         genre_hash = callback_query.data
-        
+
         if genre_hash == "confirm":
             # Подтверждение выбора: получаем оригинальные жанры по их состоянию
             selected_genres = [genre for genre, selected in genres_of_work.items() if selected]
@@ -384,12 +362,6 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'photo':
                     survey_repo.insert_field(chat_id, "photo_id", message.photo[-1].file_id)
-                    survey_repo.update_field(chat_id, "text", message.caption)
-                    await bot.send_message(chat_id, MEDIA_SUCCESS)
-                    await state.set_state(User.registration_handle_photo_survey_end)
-                    await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
-                case 'video':
-                    survey_repo.insert_field(chat_id, "video_id", message.video.file_id)
                     survey_repo.update_field(chat_id, "text", message.caption)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
@@ -472,7 +444,9 @@ async def handle_email_address(message: Message, state: FSMContext):
                 await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
             else:
                 await state.set_state(User.registration_start)
-                await bot.send_message(chat_id, "Во время регистрации произошла ошибка, попробуйте ещё раз:\n\n"+SURVEY_START_REGISTRATION, reply_markup=None)
+                await bot.send_message(chat_id,
+                                       "Во время регистрации произошла ошибка, попробуйте ещё раз:\n\n" + SURVEY_START_REGISTRATION,
+                                       reply_markup=None)
         else:
             await bot.send_message(chat_id, EMAIL_VALIDATION)
     except Exception as e:
@@ -504,7 +478,9 @@ async def skip_email_address_handler(call: CallbackQuery, state: FSMContext):
             await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
         else:
             await state.set_state(User.registration_start)
-            await bot.send_message(chat_id, "Во время регистрации произошла ошибка, попробуйте ещё раз:\n\n"+SURVEY_START_REGISTRATION, reply_markup=None)
+            await bot.send_message(chat_id,
+                                   "Во время регистрации произошла ошибка, попробуйте ещё раз:\n\n" + SURVEY_START_REGISTRATION,
+                                   reply_markup=None)
     except Exception as e:
         print("Error in skip_email_address:", e)
         await state.set_state(User.registration_handle_email_start)
@@ -520,9 +496,9 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
         user_data = text_response.data[0]
         genre_work = json.loads(user_data['genre_work']) if user_data.get('genre_work') else []
         message_text = f"👨🏻‍💼 ФИО: {user_data['fio']}\n" \
-                   f"⚜️ Гильдия: {user_data['guild']}\n" \
-                   f"🏛️ Ваша Компания: {user_data['company']}\n" \
-                   f"🔖 Категории: {', '.join(genre_work)}\n"
+                       f"⚜️ Гильдия: {user_data['guild']}\n" \
+                       f"🏛️ Ваша Компания: {user_data['company']}\n" \
+                       f"🔖 Категории: {', '.join(genre_work)}\n"
 
         if user_data['phone']:
             message_text += f"📱 Номер телефона: +{user_data['phone']}\n"
@@ -536,21 +512,24 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
             await bot.send_photo(
                 chat_id,
                 photo=data["photo_id"],
-                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get(
+                    "text") else message_text
             )
             await state.set_state(User.profile)
         elif data.get("video_id"):
             await bot.send_video(
                 chat_id,
                 video=data["video_id"],
-                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get(
+                    "text") else message_text
             )
             await state.set_state(User.profile)
         elif data.get("document_id"):
             await bot.send_document(
                 chat_id,
                 document=data["document_id"],
-                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get(
+                    "text") else message_text
             )
             await state.set_state(User.profile)
         elif data.get("media_ids"):
@@ -559,7 +538,8 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
             # Добавляем первый элемент с подписью, если текст есть
             first_media = InputMediaPhoto(
                 media=media_ids[0],
-                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get("text") else message_text
+                caption=f"Текст вашей визитки:\n{data.get('text', '')}\n{message_text}" if data.get(
+                    "text") else message_text
             )
             await state.set_state(User.profile)
             media_group.append(first_media)
@@ -568,7 +548,8 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
             await bot.send_media_group(chat_id, media=media_group)
             await state.set_state(User.profile)
         elif data.get("text"):
-            await bot.send_message(chat_id, f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
+            await bot.send_message(chat_id,
+                                   f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
             await state.set_state(User.profile)
     except Exception as e:
         print("Error in show_my_survey_handler:", e)
@@ -603,7 +584,7 @@ async def search_button_handler(message: Message, state: FSMContext):
 
 @user_router.message(F.text == back_button['button1'], User.search)
 async def edit_profile_back(message: Message, state: FSMContext):
-    await message.answer(BACK_TO_MENU,reply_markup=registered_keyboard()) 
+    await message.answer(BACK_TO_MENU, reply_markup=registered_keyboard())
     reset_genres_of_work()
     await state.set_state(User.registration_end)
 
@@ -617,7 +598,7 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
 
         if genre_hash == "confirm":
             if selected_genres:
-                
+
                 response = user_repo.get_all_users()
                 users = response.data if response.data else []
 
@@ -632,12 +613,13 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                         print(f"{user['fio']}: {match_count} matches with {user_genres}")
                         return match_count
 
-                    filtered_users = [user for user in users if genre_match_count(user) > 0 and user['chat_id'] != chat_id] 
+                    filtered_users = [user for user in users if
+                                      genre_match_count(user) > 0 and user['chat_id'] != chat_id]
 
                     sorted_users = sorted(
                         filtered_users,
                         key=lambda user: (
-                            user['guild'], 
+                            user['guild'],
                             -genre_match_count(user)
                         )
                     )
@@ -645,7 +627,8 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
                     if sorted_users:
                         await state.update_data(sorted_users=sorted_users, current_index=0)
                         await send_profile(bot, chat_id, sorted_users[0])
-                        await bot.send_message(chat_id, "Используйте кнопки для навигации.", reply_markup=navigation_keyboard())
+                        await bot.send_message(chat_id, "Используйте кнопки для навигации.",
+                                               reply_markup=navigation_keyboard())
                         await state.set_state(User.search_active)
                     else:
                         await bot.send_message(chat_id, "Нет пользователей, соответствующих выбранным критериям.")
@@ -672,19 +655,18 @@ async def navigate_profiles(message: Message, state: FSMContext):
     if not sorted_users:
         await message.answer("Нет доступных анкет.")
         return
-    
+
     if message.text == "⬅️Влево":
         current_index = (current_index - 1) % len(sorted_users)
     elif message.text == "➡️Вправо":
         current_index = (current_index + 1) % len(sorted_users)
-    else: 
+    else:
         await state.set_state(User.registration_end)
         reset_genres_of_work()
         await message.answer("Вы вернулись назад.", reply_markup=registered_keyboard())
         return
-    
+
     await state.update_data(current_index=current_index)
     await send_profile(bot, message.chat.id, sorted_users[current_index])
-
 
 #чтоб своя не выводилась  фикс багов от Влада

@@ -104,9 +104,9 @@ genres_of_work = {
 def hash_buttons(text):
     return hashlib.md5(text.encode()).hexdigest()[:10]
 
-#TODO ЧЁ ЭТО БЛЯТЬ ТАКОЕ
+
 hash_to_genre = {hash_buttons(genre): genre for genre in genres_of_work.keys()}
-#TODO ЧЁ ЭТО БЛЯТЬ ТАКОЕ
+
 
 
 def genre_of_work_keyboard():
