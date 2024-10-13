@@ -3,7 +3,6 @@ import logging
 import sys
 
 from aiogram.methods import DeleteWebhook
-
 from config import dp, bot
 from src.handlers.guest_handler import guest_router
 from src.handlers.user_handler import user_router

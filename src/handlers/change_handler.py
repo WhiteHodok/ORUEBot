@@ -73,7 +73,6 @@ from src.handlers.user_validation import (
     validate_email
 )
 from src.handlers.user_handler import user_router
-from src.handlers.user_handler import to_input_media
 from config import supabase
 from src.repo import UserDataRepo
 from src.repo import SurveyRepo

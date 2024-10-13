@@ -15,6 +15,12 @@ def validate_fio(fio: str) -> bool:
     # Split the string by spaces to get the individual words.
     words = fio.split()
 
+    # Get total length of the string
+    total_length = len(fio)
+
+    if total_length > 100:
+        return False
+
     # Check if the string has at least two words.
     if len(words) < 2:
         return False
@@ -42,3 +48,9 @@ def validate_email(email: str) -> bool:
         return True
     else:
         return False
+
+def validate_company_length(company: str) -> bool:
+    if len(company) > 1000:
+        return False
+    else:
+        return True
