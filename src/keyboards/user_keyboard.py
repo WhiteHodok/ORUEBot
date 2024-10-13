@@ -100,10 +100,14 @@ genres_of_work = {
     "Организация и продвижение": False
 }
 
+
 def hash_buttons(text):
     return hashlib.md5(text.encode()).hexdigest()[:10]
 
+
 hash_to_genre = {hash_buttons(genre): genre for genre in genres_of_work.keys()}
+
+
 
 def genre_of_work_keyboard():
     kb_builder = InlineKeyboardBuilder()
@@ -152,7 +156,6 @@ def skip_keyboard():
     kb_builder = InlineKeyboardBuilder()
     kb_builder.row(InlineKeyboardButton(text="Пропустить", callback_data="skip"))
     return kb_builder.as_markup()
-
 
 
 profile_keyboard_buttons = {
@@ -226,11 +229,13 @@ def reset_genres_of_work():
     for genre in genres_of_work:
         genres_of_work[genre] = False
 
+
 navigation_keyboard_buttons = {
     "button1": "⬅️Влево",
     "button2": "🔙Назад",
     "button3": "➡️Вправо"
 }
+
 
 def navigation_keyboard():
     keyboard = ReplyKeyboardBuilder()

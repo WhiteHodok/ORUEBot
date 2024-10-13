@@ -73,7 +73,6 @@ from src.handlers.user_validation import (
     validate_email
 )
 from src.handlers.user_handler import user_router
-from src.handlers.user_handler import to_input_media
 from config import supabase
 from src.repo import UserDataRepo
 from src.repo import SurveyRepo
@@ -230,7 +229,7 @@ async def edit_profile_change_category_final(callback_query: CallbackQuery, stat
         if genre_hash == "confirm":
             # Подтверждение выбора: получаем оригинальные жанры по их состоянию
             selected_genres = [genre for genre, selected in genres_of_work.items() if selected]
-            if selected_genres:
+            if selected_genres and len(selected_genres) <= 10:
                 # Сохраняем оригинальные названия жанров в состояние
                 await state.update_data(genres_of_work=selected_genres)
                 await callback_query.message.answer("Вы выбрали следующие категории:\n" + "\n".join(selected_genres))
@@ -239,7 +238,7 @@ async def edit_profile_change_category_final(callback_query: CallbackQuery, stat
                 reset_genres_of_work()
                 await state.set_state(Change.profile_change)
             else:
-                await callback_query.answer("Выберите хотя бы одну категорию!", show_alert=True)
+                await callback_query.answer("Количество категорий не должно превышать 10 и не может быть равно 0!", show_alert=True)
         else:
             # Находим оригинальный жанр по хешу
             genre = hash_to_genre.get(genre_hash, None)
@@ -284,17 +283,6 @@ async def edit_profile_change_media_final(message: Message, state: FSMContext, a
                         "text": message.caption  # Сохраняем caption как текст
                     }
                     survey_repo.insert_fields(chat_id, fields_to_insert)
-                    await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
-                    await state.set_state(Change.profile_change)
-                case 'video':
-                    if survey_repo.get_user_order_data(chat_id):
-                        survey_repo.delete_user_data(chat_id)
-                    field_to_insert = {
-                        "chat_id": chat_id,
-                        "video_id": message.video.file_id,  # Сохраняем ID видео
-                        "text": message.caption  # Сохраняем caption как текст
-                    }
-                    survey_repo.insert_fields(chat_id, field_to_insert)
                     await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
                     await state.set_state(Change.profile_change)
                 case 'document':
