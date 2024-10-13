@@ -9,6 +9,7 @@ from src.repo.UserDataRepo import UserDataRepository
 user_repo = UserDataRepository(supabase)
 survey_repo = SurveyRepository(supabase)
 
+
 async def send_profile(bot, chat_id, user):
     try:
         genre_work = json.loads(user['genre_work'].replace("'", '"'))

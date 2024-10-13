@@ -357,7 +357,6 @@ async def handle_genre_of_work_start(callback_query: CallbackQuery, state: FSMCo
         print("Error in handle_genre_of_work_start:", e)
 
 
-
 @user_router.callback_query(User.registration_handle_photo_survey_start, F.data == 'skip')
 async def skip_survey_media(call: CallbackQuery, state: FSMContext):
     try:
@@ -384,7 +383,6 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'photo':
-                    
                     survey_repo.insert_field(chat_id, "photo_id", message.photo[-1].file_id)
                     survey_repo.update_field(chat_id, "text", message.caption)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
@@ -392,12 +390,6 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case 'video':
                     survey_repo.insert_field(chat_id, "video_id", message.video.file_id)
-                    survey_repo.update_field(chat_id, "text", message.caption)
-                    await bot.send_message(chat_id, MEDIA_SUCCESS)
-                    await state.set_state(User.registration_handle_photo_survey_end)
-                    await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
-                case 'document':
-                    survey_repo.insert_field(chat_id, "document_id", message.document.file_id)
                     survey_repo.update_field(chat_id, "text", message.caption)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
@@ -445,8 +437,6 @@ async def handle_survey_phone_number(message: Message, state: FSMContext):
 async def skip_phone_number(call: CallbackQuery, state: FSMContext):
     try:
         chat_id = call.message.chat.id
-        phone_number = 'Не указан'
-        await state.update_data(phone_number=phone_number)
         await state.set_state(User.registration_handle_email_start)
         await bot.send_message(chat_id, EMAIL_ADDRESS, reply_markup=skip_keyboard())
     except Exception as e:
@@ -468,19 +458,21 @@ async def handle_email_address(message: Message, state: FSMContext):
             genre_of_work = data.get('genres_of_work')
             phone_number = data.get('phone_number')
             email_address = data.get('email_address')
-            if fio and guild and company_name and genre_of_work and phone_number and email_address:
-                user_repo.update_field(chat_id, "fio", fio)
-                user_repo.update_field(chat_id, "guild", guild)
-                user_repo.update_field(chat_id, "company", company_name)
-                user_repo.update_field(chat_id, "genre_work", genre_of_work)
-                user_repo.update_field(chat_id, "phone", phone_number)
-                user_repo.update_field(chat_id, "mail", email_address)
-                user_repo.update_field(chat_id, "clicker", True)
+            if fio and guild and company_name and genre_of_work:
+                user_repo.update_fields(chat_id,
+                                        {
+                                            "fio": fio,
+                                            "guild": guild,
+                                            "company": company_name,
+                                            "genre_work": genre_of_work,
+                                            "phone": phone_number,
+                                            "mail": email_address
+                                        })
                 await state.set_state(User.registration_end)
                 await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
             else:
                 await state.set_state(User.registration_start)
-                await bot.send_message(chat_id, SURVEY_START_REGISTRATION, reply_markup=None)
+                await bot.send_message(chat_id, "Во время регистрации произошла ошибка, попробуйте ещё раз:\n\n"+SURVEY_START_REGISTRATION, reply_markup=None)
         else:
             await bot.send_message(chat_id, EMAIL_VALIDATION)
     except Exception as e:
@@ -499,20 +491,20 @@ async def skip_email_address_handler(call: CallbackQuery, state: FSMContext):
         company_name = data.get('company_name')
         genre_of_work = data.get('genres_of_work')
         phone_number = data.get('phone_number')
-        email_address = 'Не указан'
-        if fio and guild and company_name and genre_of_work and phone_number and email_address:
-            user_repo.update_field(chat_id, "fio", fio)
-            user_repo.update_field(chat_id, "guild", guild)
-            user_repo.update_field(chat_id, "company", company_name)
-            user_repo.update_field(chat_id, "genre_work", genre_of_work)
-            user_repo.update_field(chat_id, "phone", phone_number)
-            user_repo.update_field(chat_id, "mail", email_address)
-            user_repo.update_field(chat_id, "clicker", True)
+        if fio and guild and company_name and genre_of_work:
+            user_repo.update_fields(chat_id,
+                                    {
+                                        "fio": fio,
+                                        "guild": guild,
+                                        "company": company_name,
+                                        "genre_work": genre_of_work,
+                                        "phone": phone_number
+                                    })
             await state.set_state(User.registration_end)
             await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
         else:
             await state.set_state(User.registration_start)
-            await bot.send_message(chat_id, SURVEY_START_REGISTRATION, reply_markup=None)
+            await bot.send_message(chat_id, "Во время регистрации произошла ошибка, попробуйте ещё раз:\n\n"+SURVEY_START_REGISTRATION, reply_markup=None)
     except Exception as e:
         print("Error in skip_email_address:", e)
         await state.set_state(User.registration_handle_email_start)
@@ -527,12 +519,16 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
         text_response = user_repo.get_user_by_chat_id(chat_id)
         user_data = text_response.data[0]
         genre_work = json.loads(user_data['genre_work']) if user_data.get('genre_work') else []
-        message_text = f"ФИО👨🏻‍💼: {user_data['fio']}\n" \
-                   f"Гильдия⚜️: {user_data['guild']}\n" \
-                   f"Ваша Компания🏛️: {user_data['company']}\n" \
-                   f"Категории🔖: {', '.join(genre_work)}\n" \
-                   f"Номер телефона📱: {user_data['phone']}\n" \
-                   f"Email📧: {user_data['mail']}"
+        message_text = f"👨🏻‍💼 ФИО: {user_data['fio']}\n" \
+                   f"⚜️ Гильдия: {user_data['guild']}\n" \
+                   f"🏛️ Ваша Компания: {user_data['company']}\n" \
+                   f"🔖 Категории: {', '.join(genre_work)}\n"
+
+        if user_data['phone']:
+            message_text += f"📱 Номер телефона: +{user_data['phone']}\n"
+
+        if user_data['mail']:
+            message_text += f"📧 Email: {user_data['mail']}"
 
         response_media = survey_repo.get_user_order_data(chat_id)
         data = response_media[0]
@@ -577,10 +573,12 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
     except Exception as e:
         print("Error in show_my_survey_handler:", e)
 
+
 @user_router.message(F.text == profile_keyboard_buttons["button1"], User.profile)
 async def edit_profile_handler(message: Message, state: FSMContext):
     await message.answer(EDIT_PROFILE, reply_markup=profile_edit_keyboard())
     await state.set_state(Change.profile_change)
+
 
 @user_router.message(F.text == profile_keyboard_buttons["button2"], User.profile)
 async def back_to_menu_from_profile(message: Message, state: FSMContext):
@@ -591,6 +589,7 @@ async def back_to_menu_from_profile(message: Message, state: FSMContext):
     except Exception as e:
         print("Error in back_to_menu_from_profile:", e)
 
+
 @user_router.message(F.text == registered_keyboard_buttons["button2"], User.registration_end)
 async def search_button_handler(message: Message, state: FSMContext):
     try:
@@ -600,6 +599,7 @@ async def search_button_handler(message: Message, state: FSMContext):
         await state.set_state(User.search)
     except Exception as e:
         print("Error in search_button_handler:", e)
+
 
 @user_router.message(F.text == back_button['button1'], User.search)
 async def edit_profile_back(message: Message, state: FSMContext):
@@ -661,6 +661,7 @@ async def search_handler(callback_query: CallbackQuery, state: FSMContext):
             await callback_query.answer("Выберите корректную категорию", show_alert=True)
     except Exception as e:
         print("Error in handling genre selection:", e)
+
 
 @user_router.message(User.search_active)
 async def navigate_profiles(message: Message, state: FSMContext):
