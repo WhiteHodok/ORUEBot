@@ -16,6 +16,10 @@ class UserDataRepository:
         """Обновить указанное значение в указанном поле в таблице UserData"""
         self.supabase.table("UserData").update({field: value}).eq("chat_id", chat_id).execute()
 
+    def update_fields(self, chat_id: int, fields: dict):
+        """Обновить указанное значение в указанные поля в таблице Surveys"""
+        self.supabase.table("UserData").update({**fields}).eq("chat_id", chat_id).execute()
+
     def get_user_by_chat_id(self, chat_id: int) -> APIResponse[Any]:
         """Получить данные пользователя по chat_id"""
         return self.supabase.table("UserData").select("*").eq("chat_id", chat_id).execute()
