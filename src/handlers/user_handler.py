@@ -41,6 +41,7 @@ from src.phrases import (
     EMAIL_VALIDATION,
     GENRE_OF_WORK,
     GENRE_OF_WORK_VALIDATION,
+    MEDIAGROUP_VIDEO_ERROR,
     PHONE_NUMBER_VALIDATION,
     PHONE_SUCCESS,
     PROFILE,
@@ -366,6 +367,18 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)
                     await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
+                case 'document':
+                    if survey_repo.get_user_order_data(chat_id):
+                        survey_repo.delete_user_data(chat_id)
+                    field_to_insert = {
+                        "chat_id": chat_id,
+                        "document_id": message.document.file_id,  # Сохраняем ID документа
+                        "text": message.caption  # Сохраняем caption как текст
+                    }
+                    survey_repo.insert_fields(chat_id, field_to_insert)
+                    await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=skip_keyboard())
+                    await state.set_state(User.registration_handle_photo_survey_end)
+                    await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
                 case _:
                     await state.set_state(User.registration_handle_photo_survey_start)
                     await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
@@ -375,6 +388,9 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
             await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=skip_keyboard())
     else:
         try:
+            if any(content.video for content in album):
+                await bot.send_message(chat_id, MEDIAGROUP_VIDEO_ERROR) 
+                return
             media_ids = [content.photo[-1].file_id if content.photo else content.video.file_id for content in album]
             caption = album[0].caption
             survey_repo.insert_field(chat_id, "media_ids", media_ids)
@@ -669,4 +685,3 @@ async def navigate_profiles(message: Message, state: FSMContext):
     await state.update_data(current_index=current_index)
     await send_profile(bot, message.chat.id, sorted_users[current_index])
 
-#чтоб своя не выводилась  фикс багов от Влада
