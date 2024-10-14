@@ -42,6 +42,7 @@ from src.phrases import (
     GENRE_OF_WORK,
     GENRE_OF_WORK_VALIDATION,
     MEDIA_VALIDATION,
+    MEDIAGROUP_VIDEO_ERROR,
     PHONE_NUMBER_VALIDATION,
     PHONE_SUCCESS,
     REGISTRATION_END_ASK,
@@ -305,14 +306,19 @@ async def edit_profile_change_media_final(message: Message, state: FSMContext, a
             await bot.send_message(chat_id, MEDIA_VALIDATION, reply_markup=back_keyboard())
     else:
         try:
+            if any(content.video for content in album):
+                await bot.send_message(chat_id, MEDIAGROUP_VIDEO_ERROR)
+                return
             if survey_repo.get_user_order_data(chat_id):
                 survey_repo.delete_user_data(chat_id)
             media_ids = [content.photo[-1].file_id if content.photo else content.video.file_id for content in album]
+            
             caption = album[0].caption
             fields_to_insert = {
                 "chat_id": chat_id,
-                "media_ids": media_ids,  # Сохраняем массив ID изображений или видео
-                "text": caption  # Сохраняем caption как текст
+                "media_ids": media_ids,  # Сохраняем массив ID изображений 
+                "text": 
+                caption  # Сохраняем caption как текст
             }
             survey_repo.insert_fields(chat_id, fields_to_insert)
             await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
