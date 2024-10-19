@@ -272,7 +272,7 @@ async def edit_profile_change_media_final(message: Message, state: FSMContext, a
                 case 'text':
                     if survey_repo.get_user_order_data(chat_id):
                         survey_repo.delete_user_data(chat_id)
-                    if len(message.text) > 1000:
+                    if len(message.text) > 850:
                         await bot.send_message(chat_id, "Слишком длинный текст анкеты!")
                         return
                     survey_repo.insert_field(chat_id, "text", message.text)

@@ -341,7 +341,6 @@ async def skip_survey_media(call: CallbackQuery, state: FSMContext):
     try:
         chat_id = call.message.chat.id
         await state.set_state(User.registration_handle_photo_survey_end)
-        user_repo.insert_field(chat_id, "chat_id", chat_id)
         survey_repo.insert_field(chat_id, "chat_id", chat_id)
         await bot.send_message(chat_id, SURVEY_PHONE_NUMBER, reply_markup=skip_keyboard())
 
@@ -570,6 +569,9 @@ async def show_my_survey_handler(message: Message, state: FSMContext):
             await bot.send_message(chat_id,
                                    f"\n" + "Текст вашей визитки:" + "\n" + data.get("text", "") + f"\n" + message_text)
             await state.set_state(User.profile)
+        else:
+            await state.set_state(User.profile)
+            await bot.send_message(chat_id, message_text)
     except Exception as e:
         print("Error in show_my_survey_handler:", e)
 
