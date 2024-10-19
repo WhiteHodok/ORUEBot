@@ -153,7 +153,7 @@ async def edit_profile_waiting_email(message: Message, state: FSMContext):
         chat_id = message.chat.id
         email = message.text
         if validate_email(email):
-            user_repo.update_field(chat_id, "email", email)
+            user_repo.update_field(chat_id, "mail", email)
             await state.set_state(Change.profile_change)
             await message.answer(CHANGE_EMAIL_SUCCESS + " на " + email, reply_markup=profile_edit_keyboard())
         else:
@@ -272,6 +272,9 @@ async def edit_profile_change_media_final(message: Message, state: FSMContext, a
                 case 'text':
                     if survey_repo.get_user_order_data(chat_id):
                         survey_repo.delete_user_data(chat_id)
+                    if len(message.text) > 1000:
+                        await bot.send_message(chat_id, "Слишком длинный текст анкеты!")
+                        return
                     survey_repo.insert_field(chat_id, "text", message.text)
                     await bot.send_message(chat_id, MEDIA_SUCCESS,reply_markup=profile_edit_keyboard())
                     await state.set_state(Change.profile_change)
@@ -317,8 +320,7 @@ async def edit_profile_change_media_final(message: Message, state: FSMContext, a
             fields_to_insert = {
                 "chat_id": chat_id,
                 "media_ids": media_ids,  # Сохраняем массив ID изображений 
-                "text": 
-                caption  # Сохраняем caption как текст
+                "text": caption  # Сохраняем caption как текст
             }
             survey_repo.insert_fields(chat_id, fields_to_insert)
             await bot.send_message(chat_id, MEDIA_SUCCESS, reply_markup=profile_edit_keyboard())
