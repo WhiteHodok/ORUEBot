@@ -357,6 +357,9 @@ async def handle_mediagroup_start(message: Message, state: FSMContext, album: li
         try:
             match content_type:
                 case 'text':
+                    if len(message.text) > 850:
+                        await bot.send_message(chat_id, "Слишком длинный текст анкеты!")
+                        return
                     survey_repo.insert_field(chat_id, "text", message.text)
                     await bot.send_message(chat_id, MEDIA_SUCCESS)
                     await state.set_state(User.registration_handle_photo_survey_end)

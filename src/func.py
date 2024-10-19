@@ -24,19 +24,13 @@ async def send_profile(bot, chat_id, user):
         f"**Номер телефона📱:** {user['phone']}\n"
         f"**Email📧:** {user['mail']}"
     )
-    survey_data = survey_repo.get_user_order_data(chat_id)[0]
+    chat_id_user = user['chat_id']
+    survey_data = survey_repo.get_user_order_data(chat_id_user)[0]
 
     if survey_data.get("photo_id"):
         await bot.send_photo(
             chat_id=chat_id,
             photo=survey_data["photo_id"],
-            caption=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}" if survey_data.get("text") else message_text,
-            parse_mode="Markdown"
-        )
-    elif survey_data.get("video_id"):
-        await bot.send_video(
-            chat_id=chat_id,
-            video=survey_data["video_id"],
             caption=f"**Текст визитки:**\n{survey_data.get('text', '')}\n\n{message_text}" if survey_data.get("text") else message_text,
             parse_mode="Markdown"
         )
