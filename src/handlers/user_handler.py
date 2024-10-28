@@ -456,7 +456,8 @@ async def handle_email_address(message: Message, state: FSMContext):
                                             "company": company_name,
                                             "genre_work": genre_of_work,
                                             "phone": phone_number,
-                                            "mail": email_address
+                                            "mail": email_address,
+                                            "clicker": True
                                         })
                 await state.set_state(User.registration_end)
                 await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
@@ -490,7 +491,8 @@ async def skip_email_address_handler(call: CallbackQuery, state: FSMContext):
                                         "guild": guild,
                                         "company": company_name,
                                         "genre_work": genre_of_work,
-                                        "phone": phone_number
+                                        "phone": phone_number,
+                                        "clicker": True
                                     })
             await state.set_state(User.registration_end)
             await bot.send_message(chat_id, REGISTRATION_END_ASK, reply_markup=registered_keyboard())
