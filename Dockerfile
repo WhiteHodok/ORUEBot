@@ -4,6 +4,11 @@ FROM python:3.11
 # Устанавливаем рабочую директорию в контейнере
 WORKDIR /app
 
+# Устанавливаем необходимые пакеты, включая Redis
+RUN apt-get update && \
+    apt-get install -y redis-server && \
+    rm -rf /var/lib/apt/lists/*
+
 # Копируем файл с зависимостями
 COPY requirements.txt .
 
@@ -16,5 +21,5 @@ COPY . .
 # Копируем .env файл с переменными окружения
 COPY .env .env
 
-# Указываем команду для запуска приложения
-CMD ["python3", "main.py"]
+# Запускаем Redis-сервер в фоновом режиме и запускаем приложение
+CMD redis-server --daemonize yes && python3 main.py
