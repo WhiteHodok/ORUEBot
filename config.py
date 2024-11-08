@@ -1,6 +1,7 @@
 from aiogram import Bot
 from aiogram import Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.fsm.storage.redis import RedisStorage
 from pydantic_settings import BaseSettings
 from supabase import Client, create_client
 
@@ -31,7 +32,8 @@ supabase_settings = SupabaseSettings()
 url: str = supabase_settings.supabase_url
 key: str = supabase_settings.supabase_key
 supabase: Client = create_client(url, key)
+storage = RedisStorage.from_url(os.getenv('REDIS_URL'))
 
 default = DefaultBotProperties(parse_mode='Markdown', protect_content=False)
 bot = Bot(token=bot_settings.token, default=default)
-dp = Dispatcher()
+dp = Dispatcher(storage=storage)
